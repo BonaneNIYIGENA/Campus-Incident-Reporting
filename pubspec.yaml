@@ -40,6 +40,7 @@ dependencies:
   firebase_storage: ^14.0.1
   provider: ^6.1.5+1
   image_picker: ^1.2.4
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,16 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  fonts:
+    - family: Ubuntu
+      fonts:
+        - asset: assets/fonts/Ubuntu-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Ubuntu-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Ubuntu-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
