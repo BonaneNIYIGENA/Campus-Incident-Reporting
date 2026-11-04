@@ -63,34 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          Text('Quick preview', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 3),
-          Text(
-            'Demo password: Campus1234',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              OutlinedButton(
-                onPressed: () {
-                  _email.text = 'student@alustudent.com';
-                  _password.text = 'Campus1234';
-                },
-                child: const Text('Student view'),
-              ),
-              OutlinedButton(
-                onPressed: () {
-                  _email.text = 'staff@alueducation.com';
-                  _password.text = 'Campus1234';
-                },
-                child: const Text('Staff view'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 24),
           _AuthAction(
             label: 'Sign in',
             onPressed: () async {
@@ -230,7 +203,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Preview account created. Mark the email verified to continue.',
+                      'Account created. We sent a verification link to your email.',
                     ),
                   ),
                 );
@@ -268,14 +241,14 @@ class VerifyEmailScreen extends StatelessWidget {
     return _AuthLayout(
       title: 'Verify your email',
       subtitle:
-          'Previewing verification for ${auth.user?.email ?? 'your ALU email'}. No email is sent in this screen prototype.',
+          'We sent a verification link to ${auth.user?.email ?? 'your ALU email'}. Open it, then come back here.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Icon(Icons.mark_email_read_outlined, size: 48),
           const SizedBox(height: 18),
           const Text(
-            'This prototype simulates the verification step. Continue below to preview the verified app flow.',
+            'Check your inbox and spam folder. You can use the app once your ALU email is verified.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -289,7 +262,7 @@ class VerifyEmailScreen extends StatelessWidget {
                 );
               }
             },
-            child: const Text('Simulate email verification'),
+            child: const Text('I’ve verified my email'),
           ),
           const SizedBox(height: 10),
           OutlinedButton(
@@ -301,14 +274,12 @@ class VerifyEmailScreen extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    ok
-                        ? 'Preview only: resend confirmation shown; no email was sent.'
-                        : 'Could not show the resend preview. Try again.',
+                    ok ? 'Verification email sent again.' : 'Could not send the email. Wait a moment and try again.',
                   ),
                 ),
               );
             },
-            child: const Text('Preview resend confirmation'),
+            child: const Text('Resend verification email'),
           ),
           TextButton(
             onPressed: () => context.read<AuthProvider>().signOut(),
@@ -372,14 +343,6 @@ class _AuthLayout extends StatelessWidget {
                   ),
                   const SizedBox(height: 26),
                   child,
-                  const SizedBox(height: 22),
-                  Text(
-                    'Prototype preview · data resets when the app restarts',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
                 ],
               ),
             ),
