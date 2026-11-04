@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "919570897811",
+    "project_id": "incident-reporting-app-73901",
+    "storage_bucket": "incident-reporting-app-73901.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:919570897811:android:2c80f274c86d40ca83e666",
+        "android_client_info": {
+          "package_name": "com.alu.cir"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDILmvIsWcK1LM5uN6orrJuEo0tg8pdTfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
