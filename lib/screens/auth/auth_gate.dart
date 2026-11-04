@@ -14,6 +14,9 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    if (auth.initializing) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final user = auth.user;
     if (user == null) return const LoginScreen();
     if (!user.emailVerified) return const VerifyEmailScreen();
