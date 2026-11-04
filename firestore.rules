@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function emailOf() {
+      return request.auth.token.email.lower();
+    }
+
+    function isAlu() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && emailOf().matches('[^@]+@(alueducation|alustudent)\\.com');
+    }
+
+    function isVerified() {
+      return isAlu() && request.auth.token.email_verified == true;
+    }
+
+    // Staff are verified accounts on the @alueducation.com domain.
+    function isStaff() {
+      return isVerified() && emailOf().matches('[^@]+@alueducation\\.com');
+    }
+
+    function roleForEmail() {
+      return emailOf().matches('[^@]+@alueducation\\.com') ? 'staff' : 'student';
+    }
+
+    function validCategory(c) {
+      return c in ['Water', 'Electricity', 'Facilities', 'Furniture', 'Sanitation', 'Safety', 'Other'];
+    }
+
+    function validBuilding(b) {
+      return b in ['Main Campus', 'Kigali Campus', 'Residence', 'Library', 'Cafeteria', 'Other'];
+    }
+
+    function validStatus(s) {
+      return s in ['Submitted', 'Under Review', 'In Progress', 'Resolved', 'Rejected'];
+    }
+
+    match /users/{uid} {
+      allow read: if isAlu() && (request.auth.uid == uid || isStaff());
+
+      // Created at sign up, before the email is verified, so only the domain is checked.
+      allow create: if isAlu()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.role == roleForEmail()
+        && request.resource.data.email == emailOf()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 50
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isAlu()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 50;
+
+      allow delete: if false;
+    }
+
+    match /incidents/{id} {
+      allow read: if isVerified();
+
+      allow create: if isVerified() && validNewIncident(request.resource.data);
+
+      allow update: if (isStaff() && isStatusChange())
+        || (isVerified() && isVoteChange());
+
+      allow delete: if isVerified()
+        && ((resource.data.reporterId == request.auth.uid
+              && resource.data.status == 'Submitted')
+            || isStaff());
+
+      function validNewIncident(d) {
+        return d.keys().hasOnly([
+            'title', 'description', 'category', 'building', 'status',
+            'reporterId', 'reporterName', 'isAnonymous', 'upvoteCount',
+            'upvoters', 'imageUrl', 'createdAt', 'updatedAt', 'history'])
+          && d.keys().hasAll([
+            'title', 'description', 'category', 'building', 'status',
+            'reporterId', 'reporterName', 'isAnonymous', 'upvoteCount',
+            'upvoters', 'createdAt', 'updatedAt', 'history'])
+          && d.title is string && d.title.size() >= 5 && d.title.size() <= 80
+          && d.description is string
+          && d.description.size() >= 10 && d.description.size() <= 500
+          && validCategory(d.category)
+          && validBuilding(d.building)
+          && d.status == 'Submitted'
+          && d.reporterId == request.auth.uid
+          && d.isAnonymous is bool
+          && d.reporterName is string
+          && (d.isAnonymous ? d.reporterName == '' : d.reporterName.size() <= 50)
+          && d.upvoteCount == 0
+          && d.upvoters.size() == 0
+          && d.createdAt == request.time
+          && d.updatedAt == request.time
+          && d.history.size() == 1
+          && d.history[0].status == 'Submitted'
+          && (!('imageUrl' in d.keys()) || d.imageUrl is string);
+      }
+
+      function isStatusChange() {
+        let d = request.resource.data;
+        let old = resource.data;
+        return d.diff(old).affectedKeys().hasOnly(['status', 'updatedAt', 'history'])
+          && validStatus(d.status)
+          && d.updatedAt == request.time
+          && d.history.size() == old.history.size() + 1
+          && d.history.hasAll(old.history)
+          && d.history[d.history.size() - 1].status == d.status
+          && d.history[d.history.size() - 1].changedBy is string
+          && (d.status != 'Rejected'
+              || d.history[d.history.size() - 1].note.size() > 0);
+      }
+
+      // One vote per user, never on your own report, and the counter must match the list.
+      function isVoteChange() {
+        let d = request.resource.data;
+        let old = resource.data;
+        let uid = request.auth.uid;
+        return d.diff(old).affectedKeys().hasOnly(['upvoters', 'upvoteCount'])
+          && old.reporterId != uid
+          && d.upvoteCount == d.upvoters.size()
+          && ((d.upvoters.size() == old.upvoters.size() + 1
+                && uid in d.upvoters
+                && !(uid in old.upvoters)
+                && d.upvoters.hasAll(old.upvoters))
+              || (d.upvoters.size() == old.upvoters.size() - 1
+                && uid in old.upvoters
+                && !(uid in d.upvoters)
+                && old.upvoters.hasAll(d.upvoters)));
+      }
+    }
+  }
+}

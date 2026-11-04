@@ -1,1 +1,33 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"incident-reporting-app-73901","appId":"1:919570897811:android:2c80f274c86d40ca83e666","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"incident-reporting-app-73901","configurations":{"android":"1:919570897811:android:2c80f274c86d40ca83e666"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "incident-reporting-app-73901",
+          "appId": "1:919570897811:android:2c80f274c86d40ca83e666",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "incident-reporting-app-73901",
+          "configurations": {
+            "android": "1:919570897811:android:2c80f274c86d40ca83e666"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}
