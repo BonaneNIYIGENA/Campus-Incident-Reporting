@@ -1,59 +1,21 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/app_user.dart';
 import '../models/incident.dart';
+import '../services/incident_service.dart';
 
 class IncidentProvider extends ChangeNotifier {
-  final Map<String, Set<String>> _votes = {};
-  final List<Incident> _items = [
-    Incident(
-      id: 'sample-water',
-      title: 'Water pressure is low in Residence B',
-      description: 'The taps on the second floor have had very low pressure since this morning.',
-      category: 'Water',
-      building: 'Residence',
-      status: 'In Progress',
-      reporterId: 'student@alustudent.com',
-      reporterName: 'Aline Student',
-      isAnonymous: false,
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      history: [
-        StatusEvent(
-          status: 'Submitted',
-          note: 'Report submitted',
-          changedBy: 'Aline Student',
-          at: DateTime.now().subtract(const Duration(hours: 3)),
-        ),
-        StatusEvent(
-          status: 'In Progress',
-          note: 'Maintenance team notified',
-          changedBy: 'Jordan Staff',
-          at: DateTime.now().subtract(const Duration(hours: 1)),
-        ),
-      ],
-    ),
-    Incident(
-      id: 'sample-light',
-      title: 'Light out near the library entrance',
-      description: 'The walkway light beside the main entrance is not working after dark.',
-      category: 'Electricity',
-      building: 'Library',
-      status: 'Submitted',
-      reporterId: 'demo-other-student',
-      reporterName: '',
-      isAnonymous: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      history: [
-        StatusEvent(
-          status: 'Submitted',
-          note: 'Report submitted',
-          changedBy: 'Student account',
-          at: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      ],
-    ),
-  ];
+  IncidentProvider(this._service);
+
+  final IncidentService _service;
+  StreamSubscription<List<Incident>>? _sub;
+  AppUser? _user;
+  List<Incident> _items = const [];
+  bool _loading = false;
   bool _busy = false;
   String? _error;
   String query = '';
@@ -61,7 +23,7 @@ class IncidentProvider extends ChangeNotifier {
   String status = 'All';
 
   List<Incident> get items => List.unmodifiable(_items);
-  bool get loading => false;
+  bool get loading => _loading;
   bool get busy => _busy;
   String? get error => _error;
   List<Incident> get visibleItems => _items.where((item) {
@@ -73,6 +35,44 @@ class IncidentProvider extends ChangeNotifier {
         (category == 'All' || item.category == category) &&
         (status == 'All' || item.status == status);
   }).toList();
+
+  // Called whenever the signed in user changes; only verified users get live data.
+  void bind(AppUser? user) {
+    final ready = user != null && user.emailVerified;
+    if (ready && _user?.uid == user.uid) return;
+    _user = ready ? user : null;
+    _sub?.cancel();
+    _sub = null;
+    _items = const [];
+    _error = null;
+    _loading = ready;
+    if (ready) _listen();
+    scheduleMicrotask(notifyListeners);
+  }
+
+  void _listen() {
+    _sub = _service.watchAll().listen(
+      (list) {
+        _items = list;
+        _loading = false;
+        _error = null;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        _loading = false;
+        _error = _describe(e);
+        notifyListeners();
+      },
+    );
+  }
+
+  void retry() {
+    _sub?.cancel();
+    _error = null;
+    _loading = true;
+    notifyListeners();
+    _listen();
+  }
 
   void setQuery(String value) {
     query = value.trim();
@@ -89,38 +89,17 @@ class IncidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void retry() {
-    _error = null;
-    notifyListeners();
-  }
+  bool hasUpvoted(String incidentId, String userId) => _items.any(
+    (item) => item.id == incidentId && item.upvoters.contains(userId),
+  );
 
-  bool hasUpvoted(String incidentId, String userId) =>
-      _votes[incidentId]?.contains(userId) ?? false;
-
-  void toggleUpvote(Incident incident, String userId) {
-    if (incident.reporterId == userId) return;
-    final voters = _votes.putIfAbsent(incident.id, () => <String>{});
-    if (!voters.add(userId)) voters.remove(userId);
-    final index = _items.indexWhere((entry) => entry.id == incident.id);
-    if (index >= 0) {
-      final old = _items[index];
-      _items[index] = Incident(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        category: old.category,
-        building: old.building,
-        status: old.status,
-        reporterId: old.reporterId,
-        reporterName: old.reporterName,
-        isAnonymous: old.isAnonymous,
-        createdAt: old.createdAt,
-        imagePath: old.imagePath,
-        upvoteCount: voters.length,
-        history: old.history,
-      );
+  Future<void> toggleUpvote(Incident incident, String userId) async {
+    if (incident.reporterId == userId || userId.isEmpty) return;
+    try {
+      await _service.toggleUpvote(id: incident.id, uid: userId);
+    } on FirebaseException catch (_) {
+      // The live list keeps showing the real count, so nothing to roll back.
     }
-    notifyListeners();
   }
 
   Future<void> create({
@@ -132,77 +111,59 @@ class IncidentProvider extends ChangeNotifier {
     required String reporterId,
     required String reporterName,
     File? photo,
-  }) async {
+  }) => _guard(
+    () => _service.create(
+      title: title,
+      description: description,
+      category: category,
+      building: building,
+      anonymous: anonymous,
+      reporterId: reporterId,
+      reporterName: reporterName,
+    ),
+  );
+
+  Future<void> updateStatus(Incident item, String value, String note) => _guard(
+    () => _service.updateStatus(
+      id: item.id,
+      status: value,
+      note: note,
+      changedBy: _user?.displayName ?? 'Staff member',
+    ),
+  );
+
+  Future<void> delete(Incident item) => _guard(() => _service.delete(item.id));
+
+  Future<void> _guard(Future<Object?> Function() action) async {
     _busy = true;
     _error = null;
     notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 350));
-    final now = DateTime.now();
-    _items.insert(
-      0,
-      Incident(
-        id: now.microsecondsSinceEpoch.toString(),
-        title: title.trim(),
-        description: description.trim(),
-        category: category,
-        building: building,
-        status: 'Submitted',
-        reporterId: reporterId,
-        reporterName: anonymous ? '' : reporterName,
-        isAnonymous: anonymous,
-        createdAt: now,
-        imagePath: photo?.path,
-        history: [
-          StatusEvent(
-            status: 'Submitted',
-            note: 'Report submitted',
-            changedBy: reporterName,
-            at: now,
-          ),
-        ],
-      ),
-    );
-    _busy = false;
-    notifyListeners();
-  }
-
-  Future<void> updateStatus(Incident item, String value, String note) async {
-    _busy = true;
-    notifyListeners();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final index = _items.indexWhere((entry) => entry.id == item.id);
-    if (index >= 0) {
-      final old = _items[index];
-      _items[index] = Incident(
-        id: old.id,
-        title: old.title,
-        description: old.description,
-        category: old.category,
-        building: old.building,
-        status: value,
-        reporterId: old.reporterId,
-        reporterName: old.reporterName,
-        isAnonymous: old.isAnonymous,
-        createdAt: old.createdAt,
-        imagePath: old.imagePath,
-        upvoteCount: old.upvoteCount,
-        history: [
-          ...old.history,
-          StatusEvent(
-            status: value,
-            note: note.trim(),
-            changedBy: 'Staff member',
-            at: DateTime.now(),
-          ),
-        ],
-      );
+    try {
+      await action();
+    } catch (e) {
+      _error = _describe(e);
+      rethrow;
+    } finally {
+      _busy = false;
+      notifyListeners();
     }
-    _busy = false;
-    notifyListeners();
   }
 
-  Future<void> delete(Incident item) async {
-    _items.removeWhere((entry) => entry.id == item.id);
-    notifyListeners();
+  String _describe(Object e) {
+    if (e is FirebaseException) {
+      return switch (e.code) {
+        'permission-denied' => 'You don’t have permission to do that.',
+        'unavailable' ||
+        'deadline-exceeded' => 'No connection. Check your internet and retry.',
+        _ => 'Something went wrong. Please try again.',
+      };
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }
