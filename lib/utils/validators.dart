@@ -40,7 +40,9 @@ class Validators {
 
   static String? description(String? v) {
     final value = v?.trim() ?? '';
-    if (value.length < 10) return 'Describe the issue in at least 10 characters';
+    if (value.length < 10) {
+      return 'Describe the issue in at least 10 characters';
+    }
     if (value.length > 500) return 'Description must be under 500 characters';
     return null;
   }
