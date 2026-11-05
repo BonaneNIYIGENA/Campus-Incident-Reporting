@@ -21,9 +21,6 @@ class StatusBadge extends StatelessWidget {
       case 'In Progress':
         foreground = const Color(0xFF845916);
         background = const Color(0xFFFAEFD7);
-      case 'Under Review':
-        foreground = colors.primary;
-        background = colors.primaryContainer;
       default:
         foreground = colors.onSurfaceVariant;
         background = colors.surfaceContainerHighest;
@@ -67,41 +64,72 @@ class IncidentCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      incident.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 76,
+                      height: 76,
+                      child: incident.imagePath == null
+                          ? _imagePlaceholder(theme)
+                          : Image.network(
+                              incident.imagePath!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  _imagePlaceholder(theme),
+                            ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  StatusBadge(status: incident.status),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                incident.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            StatusBadge(status: incident.status),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${incident.category} · ${incident.building}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                '${incident.category} · ${incident.building}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 incident.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Icon(
@@ -138,8 +166,6 @@ class IncidentCard extends StatelessWidget {
                     ),
                   ] else
                     const Spacer(),
-                  if (incident.imagePath != null)
-                    const Icon(Icons.image_outlined, size: 17),
                   const SizedBox(width: 4),
                   const Icon(Icons.chevron_right_rounded),
                 ],
@@ -150,6 +176,18 @@ class IncidentCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _imagePlaceholder(ThemeData theme) => ColoredBox(
+    color: theme.colorScheme.surfaceContainerHighest,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.image_outlined, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(height: 2),
+        Text('No image', style: theme.textTheme.labelSmall),
+      ],
+    ),
+  );
 
   String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }
