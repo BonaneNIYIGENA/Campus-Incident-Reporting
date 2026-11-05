@@ -37,7 +37,10 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> refreshVerification() async {
     try {
       final verified = await _service.refreshVerification();
-      _user = _service.currentUser;
+      final fresh = _service.currentUser;
+      if (fresh != null) {
+        _user = fresh.copyWith(role: _user?.role, campus: _user?.campus);
+      }
       notifyListeners();
       return verified;
     } catch (_) {
