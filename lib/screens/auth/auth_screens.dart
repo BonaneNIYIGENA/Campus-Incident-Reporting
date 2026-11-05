@@ -319,18 +319,21 @@ class _AuthLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.apartment_rounded,
-                      color: Colors.white,
-                      size: 28,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.apartment_rounded,
+                        color: theme.colorScheme.onPrimary,
+                        size: 28,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
