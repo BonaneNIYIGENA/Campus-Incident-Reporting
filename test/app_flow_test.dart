@@ -81,6 +81,20 @@ void main() {
     );
   });
 
+  testWidgets('spaces typed into the email field are dropped', (tester) async {
+    await tester.pumpWidget(await app());
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'b. niyigena@alustudent.com ',
+    );
+    await tester.pump();
+    final field = tester.widget<TextFormField>(
+      find.byType(TextFormField).at(0),
+    );
+    expect(field.controller!.text, 'b.niyigena@alustudent.com');
+  });
+
   testWidgets('an unverified account is held on the verify screen', (
     tester,
   ) async {
