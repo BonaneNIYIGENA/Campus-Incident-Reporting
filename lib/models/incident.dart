@@ -14,7 +14,9 @@ class StatusEvent {
   final DateTime at;
 
   factory StatusEvent.fromMap(Map<String, dynamic> map) => StatusEvent(
-    status: map['status'] as String? ?? '',
+    status: (map['status'] as String? ?? '') == 'Under Review'
+        ? 'In Progress'
+        : map['status'] as String? ?? '',
     note: map['note'] as String? ?? '',
     changedBy: map['changedBy'] as String? ?? '',
     at: _asDate(map['at']),
@@ -67,7 +69,9 @@ class Incident {
     description: map['description'] as String? ?? '',
     category: map['category'] as String? ?? 'Other',
     building: map['building'] as String? ?? 'Other',
-    status: map['status'] as String? ?? 'Submitted',
+    status: (map['status'] as String? ?? 'Submitted') == 'Under Review'
+        ? 'In Progress'
+        : map['status'] as String? ?? 'Submitted',
     reporterId: map['reporterId'] as String? ?? '',
     reporterName: map['reporterName'] as String? ?? '',
     isAnonymous: map['isAnonymous'] as bool? ?? false,
