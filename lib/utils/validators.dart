@@ -1,4 +1,9 @@
+import 'package:flutter/services.dart';
+
 class Validators {
+  // Keyboards can slip a space in after a typed dot, which breaks the email check.
+  static final noSpaces = FilteringTextInputFormatter.deny(RegExp(r'\s'));
+
   // Only ALU domains are allowed, matched case-insensitively.
   static final _email = RegExp(
     r'^[A-Za-z0-9._%+\-]+@(alueducation\.com|alustudent\.com)$',

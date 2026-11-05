@@ -36,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _email,
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
+            autocorrect: false,
+            enableSuggestions: false,
+            inputFormatters: [Validators.noSpaces],
             validator: Validators.email,
             decoration: const InputDecoration(
               labelText: 'ALU email',
@@ -152,6 +155,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           TextFormField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            enableSuggestions: false,
+            inputFormatters: [Validators.noSpaces],
             validator: Validators.email,
             decoration: const InputDecoration(
               labelText: 'ALU email',
