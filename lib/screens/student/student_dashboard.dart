@@ -75,7 +75,7 @@ class StudentDashboard extends StatelessWidget {
                                 .where((i) => i.status == 'Submitted')
                                 .length,
                             icon: Icons.assignment_outlined,
-                            color: AppTheme.blue,
+                            color: AppTheme.green,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -209,7 +209,7 @@ class _ReportBanner extends StatelessWidget {
   final VoidCallback onPressed;
   @override
   Widget build(BuildContext context) => Material(
-    color: AppTheme.navy,
+    color: AppTheme.deepGreen,
     borderRadius: BorderRadius.circular(20),
     child: InkWell(
       onTap: onPressed,
@@ -233,7 +233,7 @@ class _ReportBanner extends StatelessWidget {
                   SizedBox(height: 7),
                   Text(
                     'Tell the right team and follow progress.',
-                    style: TextStyle(color: Color(0xFFDCE7F2)),
+                    style: TextStyle(color: Color(0xFFD9F2E3)),
                   ),
                   SizedBox(height: 17),
                   Row(

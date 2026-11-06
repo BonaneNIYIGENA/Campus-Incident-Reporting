@@ -110,13 +110,7 @@ class StaffDashboard extends StatelessWidget {
                           label: 'New',
                           count: _count(reports, 'Submitted'),
                           icon: Icons.fiber_new_rounded,
-                          color: AppTheme.blue,
-                        ),
-                        _StaffMetric(
-                          label: 'Under review',
-                          count: _count(reports, 'Under Review'),
-                          icon: Icons.visibility_outlined,
-                          color: AppTheme.amber,
+                          color: AppTheme.green,
                         ),
                         _StaffMetric(
                           label: 'In progress',
