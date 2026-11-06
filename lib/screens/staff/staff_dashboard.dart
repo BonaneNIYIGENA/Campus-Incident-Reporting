@@ -7,10 +7,12 @@ import '../../screens/auth/auth_gate.dart';
 import '../../screens/incident_screens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/incident_card.dart';
+import 'facility_management_screen.dart';
 
 class StaffDashboard extends StatelessWidget {
-  const StaffDashboard({super.key, required this.name});
+  const StaffDashboard({super.key, required this.name, this.campus = ''});
   final String name;
+  final String campus;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,16 @@ class StaffDashboard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 22),
+                    OutlinedButton.icon(
+                      onPressed: () => _open(
+                        context,
+                        FacilityManagementScreen(
+                          campus: campus.isEmpty ? 'Kigali Campus' : campus,
+                        ),
+                      ),
+                      icon: const Icon(Icons.apartment_outlined),
+                      label: const Text('Manage campus facilities'),
+                    ),
                     Card(
                       color: theme.colorScheme.primaryContainer.withValues(
                         alpha: .55,

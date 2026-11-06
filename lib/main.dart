@@ -6,10 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/incident_provider.dart';
+import 'providers/facility_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/auth/auth_gate.dart';
 import 'services/auth_service.dart';
 import 'services/incident_service.dart';
+import 'services/facility_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -54,6 +56,7 @@ class CirApp extends StatelessWidget {
           update: (_, auth, incidents) => incidents!..bind(auth.user),
         ),
         ChangeNotifierProvider(create: (_) => ThemeProvider(preferences!)),
+        ChangeNotifierProvider(create: (_) => FacilityProvider(FacilityService())),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) => MaterialApp(
