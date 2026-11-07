@@ -50,3 +50,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Keeps the launch screen up until Flutter has drawn its first frame.
+    implementation("androidx.core:core-splashscreen:1.0.1")
+}
