@@ -6,7 +6,21 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
 import '../models/incident.dart';
+import '../services/image_upload_service.dart';
 import '../services/incident_service.dart';
+
+const _sampleTitles = {
+  'Water leak near Library entrance',
+  'Projector not working in Room 204',
+  'Overflowing bin by the cafeteria',
+  'Broken desk in Residence B',
+  'Lights out along the east corridor',
+  'Low water pressure in residence showers',
+  'Library study room door will not close',
+  'Recycling point needs collection',
+  'Loose handrail near the main stairs',
+  'Classroom chair has a sharp edge',
+};
 
 class IncidentProvider extends ChangeNotifier {
   IncidentProvider(this._service);
@@ -26,6 +40,12 @@ class IncidentProvider extends ChangeNotifier {
   bool get loading => _loading;
   bool get busy => _busy;
   String? get error => _error;
+  int get sampleReportsCount => _items
+      .where(
+        (item) =>
+            item.reporterId == _user?.uid && _sampleTitles.contains(item.title),
+      )
+      .length;
   List<Incident> get visibleItems => _items.where((item) {
     final text =
         query.isEmpty ||
@@ -120,6 +140,7 @@ class IncidentProvider extends ChangeNotifier {
       anonymous: anonymous,
       reporterId: reporterId,
       reporterName: reporterName,
+      photo: photo,
     ),
   );
 
@@ -133,6 +154,92 @@ class IncidentProvider extends ChangeNotifier {
   );
 
   Future<void> delete(Incident item) => _guard(() => _service.delete(item.id));
+
+  Future<void> seedSampleReports({
+    required String reporterId,
+    required String reporterName,
+  }) => _guard(() async {
+    const samples = [
+      (
+        'Water leak near Library entrance',
+        'Water',
+        'Library',
+        'A pipe is leaking beside the main entrance and making the walkway slippery.',
+      ),
+      (
+        'Projector not working in Room 204',
+        'Facilities',
+        'Main Campus',
+        'The classroom projector powers on but does not display from any laptop.',
+      ),
+      (
+        'Overflowing bin by the cafeteria',
+        'Sanitation',
+        'Cafeteria',
+        'The outdoor bin is full and litter is spreading around the seating area.',
+      ),
+      (
+        'Broken desk in Residence B',
+        'Furniture',
+        'Residence',
+        'One desk has a loose leg and is unsafe to use for studying.',
+      ),
+      (
+        'Lights out along the east corridor',
+        'Electricity',
+        'Main Campus',
+        'Several ceiling lights are not working along the second floor corridor.',
+      ),
+      (
+        'Low water pressure in residence showers',
+        'Water',
+        'Residence',
+        'Water pressure has been very low in the residence shower block since this morning.',
+      ),
+      (
+        'Library study room door will not close',
+        'Facilities',
+        'Library',
+        'The latch is damaged, so the group study room door stays open.',
+      ),
+      (
+        'Recycling point needs collection',
+        'Sanitation',
+        'Cafeteria',
+        'The recycling containers are full and need to be emptied.',
+      ),
+      (
+        'Loose handrail near the main stairs',
+        'Safety',
+        'Main Campus',
+        'The handrail moves when held and could cause someone to lose balance.',
+      ),
+      (
+        'Classroom chair has a sharp edge',
+        'Furniture',
+        'Kigali Campus',
+        'A broken plastic chair has a sharp edge and should be removed from the room.',
+      ),
+    ];
+    final existing = await _service.watchAll().first;
+    final existingTitles = existing
+        .where((item) => item.reporterId == reporterId)
+        .map((item) => item.title)
+        .toSet();
+    for (final sample in samples) {
+      if (existingTitles.contains(sample.$1)) continue;
+      await _service.create(
+        title: sample.$1,
+        description: sample.$4,
+        category: sample.$2,
+        building: sample.$3,
+        anonymous: false,
+        reporterId: reporterId,
+        reporterName: reporterName,
+      );
+    }
+    return null;
+  });
 
   Future<void> _guard(Future<Object?> Function() action) async {
     _busy = true;
@@ -158,6 +265,7 @@ class IncidentProvider extends ChangeNotifier {
         _ => 'Something went wrong. Please try again.',
       };
     }
+    if (e is ImageUploadFailure) return e.message;
     return 'Something went wrong. Please try again.';
   }
 

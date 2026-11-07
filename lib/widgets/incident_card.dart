@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/incident.dart';
+import '../services/image_upload_service.dart';
 
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
@@ -79,7 +80,7 @@ class IncidentCard extends StatelessWidget {
                       child: incident.imagePath == null
                           ? _imagePlaceholder(theme)
                           : Image.network(
-                              incident.imagePath!,
+                              cloudinaryThumb(incident.imagePath!),
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) =>
                                   _imagePlaceholder(theme),

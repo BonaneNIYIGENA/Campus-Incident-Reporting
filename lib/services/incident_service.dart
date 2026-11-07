@@ -1,12 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../config/cloudinary_config.dart';
 import '../models/incident.dart';
+import 'image_upload_service.dart';
 
 class IncidentService {
-  IncidentService({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  IncidentService({FirebaseFirestore? firestore, ImageUploader? uploader})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _uploader = uploader ?? CloudinaryUploader();
 
   final FirebaseFirestore _db;
+  final ImageUploader _uploader;
 
   CollectionReference<Map<String, dynamic>> get _incidents =>
       _db.collection('incidents');
@@ -28,9 +33,16 @@ class IncidentService {
     required bool anonymous,
     required String reporterId,
     required String reporterName,
+    File? photo,
     String? imageUrl,
   }) async {
     final ref = _incidents.doc();
+    if (photo != null) {
+      imageUrl = await _uploader.upload(
+        photo,
+        folder: CloudinaryConfig.incidentFolder,
+      );
+    }
     final first = StatusEvent(
       status: 'Submitted',
       note: 'Report submitted',
