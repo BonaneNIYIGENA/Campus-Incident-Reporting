@@ -88,6 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _password,
             label: 'Password',
             icon: Ph.lock,
+            liveValidation: true,
             obscureText: !_visible,
             textInputAction: TextInputAction.done,
             autofillHints: const [AutofillHints.password],
@@ -221,6 +222,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             controller: _password,
             label: 'Password',
             icon: Ph.lock,
+            liveValidation: true,
             obscureText: !_visible,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.newPassword],
@@ -246,6 +248,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             fieldKey: _confirmKey,
             label: 'Confirm password',
             icon: Ph.lockKey,
+            liveValidation: true,
             obscureText: !_confirmVisible,
             textInputAction: TextInputAction.done,
             maxLength: Validators.passwordMax,
@@ -510,28 +513,17 @@ class _VisibilityToggle extends StatelessWidget {
   );
 }
 
-// Shows what is still missing from a password while it is being typed.
+// Four bars, one per rule, each with a few words under it. A bar fills once its rule is met.
 class _PasswordStrength extends StatelessWidget {
   const _PasswordStrength({required this.password});
   final String password;
 
+  static const _captions = ['8+ chars', 'Capital', 'Lowercase', 'Number'];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final score = Validators.passwordScore(password);
-    final color = switch (score) {
-      0 || 1 => const Color(0xFFD7403A),
-      2 => const Color(0xFFE0A030),
-      3 => const Color(0xFF8DBE3F),
-      _ => theme.colorScheme.primary,
-    };
-    final label = switch (score) {
-      0 => '',
-      1 => 'Weak',
-      2 => 'Fair',
-      3 => 'Good',
-      _ => 'Strong',
-    };
+    final colors = theme.colorScheme;
     return AnimatedSize(
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -540,48 +532,25 @@ class _PasswordStrength extends StatelessWidget {
           ? const SizedBox(width: double.infinity)
           : Padding(
               padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      for (var i = 0; i < 4; i++)
-                        Expanded(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 260),
-                            height: 5,
-                            margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
-                            decoration: BoxDecoration(
-                              color: i < score
-                                  ? color
-                                  : theme.colorScheme.outlineVariant,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
+                  for (var i = 0; i < Validators.passwordRules.length; i++)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: i < Validators.passwordRules.length - 1
+                              ? 6
+                              : 0,
                         ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 44,
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12.5,
-                          ),
+                        child: _RuleBar(
+                          caption: _captions[i],
+                          met: Validators.passwordRules[i].$2(password),
+                          fill: colors.primary,
+                          empty: colors.outlineVariant,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 14,
-                    runSpacing: 6,
-                    children: [
-                      for (final (text, test) in Validators.passwordRules)
-                        _Rule(text: text, met: test(password)),
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),
@@ -589,33 +558,40 @@ class _PasswordStrength extends StatelessWidget {
   }
 }
 
-class _Rule extends StatelessWidget {
-  const _Rule({required this.text, required this.met});
-  final String text;
+class _RuleBar extends StatelessWidget {
+  const _RuleBar({
+    required this.caption,
+    required this.met,
+    required this.fill,
+    required this.empty,
+  });
+  final String caption;
   final bool met;
+  final Color fill, empty;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: Icon(
-            met ? Ph.checkCircleFill : Ph.checkCircle,
-            key: ValueKey(met),
-            size: 16,
-            color: met ? colors.primary : colors.outline,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          height: 5,
+          decoration: BoxDecoration(
+            color: met ? fill : empty,
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
-        const SizedBox(width: 5),
-        Text(
-          text,
+        const SizedBox(height: 5),
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 200),
           style: TextStyle(
-            fontSize: 12.5,
-            color: met ? colors.onSurface : colors.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: met ? FontWeight.w700 : FontWeight.w500,
+            color: met ? colors.primary : colors.onSurfaceVariant,
           ),
+          child: Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );

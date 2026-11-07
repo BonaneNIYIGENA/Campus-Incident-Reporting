@@ -33,7 +33,8 @@ class FormSheet extends StatelessWidget {
   final String? subtitle;
   final Widget? child;
   final String primaryLabel, secondaryLabel;
-  final VoidCallback onPrimary;
+  // Null greys the main button out, for example until something has changed.
+  final VoidCallback? onPrimary;
   final bool destructive, busy;
 
   @override

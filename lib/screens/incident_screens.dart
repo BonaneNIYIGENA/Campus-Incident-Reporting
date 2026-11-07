@@ -203,7 +203,7 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Report submitted. You can follow its progress in My reports.',
+            'Report submitted. You can follow its progress under Records.',
           ),
         ),
       );
@@ -524,7 +524,7 @@ class IncidentDetailScreen extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _MetaChip(label: 'Issue: ${item.category}'),
+                  _MetaChip(icon: Ph.tag, label: 'Issue: ${item.category}'),
                   _MetaChip(icon: Ph.mapPin, label: item.location),
                   _MetaChip(icon: Ph.clock, label: stamp(item.createdAt)),
                 ],

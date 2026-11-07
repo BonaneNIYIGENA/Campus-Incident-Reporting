@@ -61,39 +61,6 @@ class FieldIcon extends StatelessWidget {
   );
 }
 
-// A soft glow behind a field while it is active.
-class FieldGlow extends StatelessWidget {
-  const FieldGlow({
-    super.key,
-    required this.active,
-    required this.child,
-    this.radius = 28,
-  });
-  final bool active;
-  final double radius;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => AnimatedContainer(
-    duration: const Duration(milliseconds: 220),
-    curve: Curves.easeOut,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      boxShadow: active
-          ? [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary
-                    .withValues(alpha: .2),
-                blurRadius: 18,
-                spreadRadius: 1,
-              ),
-            ]
-          : const [],
-    ),
-    child: child,
-  );
-}
-
 InputBorder _withRadius(InputBorder? border, double radius) =>
     border is OutlineInputBorder
     ? border.copyWith(borderRadius: BorderRadius.circular(radius))
@@ -125,6 +92,7 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.alignLabelWithHint = false,
     this.fieldKey,
+    this.liveValidation = false,
   });
   final TextEditingController controller;
   final String label;
@@ -147,6 +115,9 @@ class AppTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final GlobalKey<FormFieldState<String>>? fieldKey;
 
+  // Most fields explain a problem once you leave them; passwords check as you type.
+  final bool liveValidation;
+
   @override
   State<AppTextField> createState() => _AppTextFieldState();
 }
@@ -156,18 +127,7 @@ class _AppTextFieldState extends State<AppTextField> {
   FocusNode get _focus => widget.focusNode ?? (_own ??= FocusNode());
 
   @override
-  void initState() {
-    super.initState();
-    _focus.addListener(_changed);
-  }
-
-  void _changed() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   void dispose() {
-    _focus.removeListener(_changed);
     _own?.dispose();
     super.dispose();
   }
@@ -177,59 +137,53 @@ class _AppTextFieldState extends State<AppTextField> {
     final multiline = widget.maxLines > 1;
     final radius = multiline ? 24.0 : 28.0;
     final t = Theme.of(context).inputDecorationTheme;
-    return FieldGlow(
-      active: _focus.hasFocus,
-      radius: radius,
-      child: TextFormField(
-        key: widget.fieldKey,
-        controller: widget.controller,
-        focusNode: _focus,
-        validator: widget.validator,
-        keyboardType: widget.keyboardType,
-        textInputAction: widget.textInputAction,
-        inputFormatters: widget.inputFormatters,
-        maxLength: widget.maxLength,
-        maxLines: widget.maxLines,
-        minLines: widget.minLines,
-        obscureText: widget.obscureText,
-        autofillHints: widget.autofillHints,
-        textCapitalization: widget.textCapitalization,
-        autocorrect: widget.autocorrect,
-        enableSuggestions: widget.enableSuggestions,
-        onChanged: widget.onChanged,
-        onFieldSubmitted: widget.onSubmitted,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        errorBuilder: (context, message) => FieldError(message),
-        buildCounter:
-            (
-              context, {
-              required currentLength,
-              required isFocused,
-              maxLength,
-            }) => isFocused && maxLength != null
-            ? Text(
-                '$currentLength/$maxLength',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: currentLength >= maxLength
-                      ? Theme.of(context).colorScheme.error
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              )
-            : null,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: widget.hint,
-          alignLabelWithHint: widget.alignLabelWithHint,
-          prefixIcon: FieldIcon(widget.icon),
-          prefixIconConstraints: const BoxConstraints(),
-          suffixIcon: widget.suffix,
-          border: _withRadius(t.border, radius),
-          enabledBorder: _withRadius(t.enabledBorder, radius),
-          focusedBorder: _withRadius(t.focusedBorder, radius),
-          errorBorder: _withRadius(t.errorBorder, radius),
-          focusedErrorBorder: _withRadius(t.focusedErrorBorder, radius),
-        ),
+    return TextFormField(
+      key: widget.fieldKey,
+      controller: widget.controller,
+      focusNode: _focus,
+      validator: widget.validator,
+      keyboardType: widget.keyboardType,
+      textInputAction: widget.textInputAction,
+      inputFormatters: widget.inputFormatters,
+      maxLength: widget.maxLength,
+      maxLines: widget.maxLines,
+      minLines: widget.minLines,
+      obscureText: widget.obscureText,
+      autofillHints: widget.autofillHints,
+      textCapitalization: widget.textCapitalization,
+      autocorrect: widget.autocorrect,
+      enableSuggestions: widget.enableSuggestions,
+      onChanged: widget.onChanged,
+      onFieldSubmitted: widget.onSubmitted,
+      autovalidateMode: widget.liveValidation
+          ? AutovalidateMode.onUserInteraction
+          : AutovalidateMode.onUnfocus,
+      errorBuilder: (context, message) => FieldError(message),
+      buildCounter:
+          (context, {required currentLength, required isFocused, maxLength}) =>
+              isFocused && maxLength != null
+              ? Text(
+                  '$currentLength/$maxLength',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: currentLength >= maxLength
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
+              : null,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        hintText: widget.hint,
+        alignLabelWithHint: widget.alignLabelWithHint,
+        prefixIcon: FieldIcon(widget.icon),
+        prefixIconConstraints: const BoxConstraints(),
+        suffixIcon: widget.suffix,
+        border: _withRadius(t.border, radius),
+        enabledBorder: _withRadius(t.enabledBorder, radius),
+        focusedBorder: _withRadius(t.focusedBorder, radius),
+        errorBorder: _withRadius(t.errorBorder, radius),
+        focusedErrorBorder: _withRadius(t.focusedErrorBorder, radius),
       ),
     );
   }

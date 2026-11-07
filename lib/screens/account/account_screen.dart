@@ -10,109 +10,12 @@ import '../../theme/app_icons.dart';
 import '../../utils/user_role.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/form_sheet.dart';
 import '../../widgets/select_field.dart';
 import '../../widgets/user_avatar.dart';
 
-class AccountSettingsScreen extends StatefulWidget {
+class AccountSettingsScreen extends StatelessWidget {
   const AccountSettingsScreen({super.key});
-
-  @override
-  State<AccountSettingsScreen> createState() => _AccountSettingsScreenState();
-}
-
-class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
-  final _form = GlobalKey<FormState>();
-  final _nameFocus = FocusNode();
-  late final TextEditingController _name;
-  String? _campus;
-  File? _photo;
-  bool _editing = false, _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = TextEditingController();
-    _loadFrom(context.read<AuthProvider>().user);
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _nameFocus.dispose();
-    super.dispose();
-  }
-
-  void _loadFrom(AppUser? user) {
-    _name.text = user?.displayName ?? '';
-    _campus = user?.campus == 'Mauritius Campus'
-        ? 'Mauritius Campus'
-        : 'Kigali Campus';
-    _photo = null;
-  }
-
-  bool _changed(AppUser? user) =>
-      _photo != null ||
-      _name.text.trim() != (user?.displayName ?? '') ||
-      _campus !=
-          (user?.campus.isEmpty ?? true ? 'Kigali Campus' : user!.campus);
-
-  void _startEditing({bool focusName = false}) {
-    setState(() => _editing = true);
-    if (focusName) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _nameFocus.requestFocus(),
-      );
-    }
-  }
-
-  void _stopEditing() {
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _editing = false;
-      _loadFrom(context.read<AuthProvider>().user);
-    });
-  }
-
-  Future<void> _pickPhoto() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      imageQuality: 75,
-    );
-    if (file != null && mounted) {
-      setState(() {
-        _photo = File(file.path);
-        _editing = true;
-      });
-    }
-  }
-
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final auth = context.read<AuthProvider>();
-    setState(() => _saving = true);
-    final ok = await auth.updateProfile(
-      name: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
-      campus: _campus,
-      photo: _photo,
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (ok) {
-        _photo = null;
-        _editing = false;
-      }
-    });
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? 'Profile saved.' : auth.error ?? 'Could not save your profile.',
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +26,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     final themeMode = context.watch<ThemeProvider>();
     final role = auth.activeRole;
     final roleLabel = role == UserRole.staff ? 'Staff' : 'Student';
-    final changed = _changed(user);
     final campus = (user?.campus ?? '').isEmpty
         ? 'Kigali Campus'
         : user!.campus;
@@ -144,211 +46,17 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.cardTheme.color ?? colors.surface,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: colors.outlineVariant),
-                  ),
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _Avatar(
-                              user: user,
-                              photo: _photo,
-                              editing: _editing,
-                              onPick: _pickPhoto,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: _editing
-                                  ? Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _RolePill(label: roleLabel),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Edit your profile',
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                        ),
-                                        Text(
-                                          'Change your photo, name or campus.',
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: colors.onSurfaceVariant,
-                                              ),
-                                        ),
-                                      ],
-                                    )
-                                  : Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _RolePill(label: roleLabel),
-                                        const SizedBox(height: 8),
-                                        _InfoLine(
-                                          text: user?.displayName ?? '',
-                                          strong: true,
-                                          onEdit: () =>
-                                              _startEditing(focusName: true),
-                                          tooltip: 'Edit name',
-                                        ),
-                                        _InfoLine(
-                                          icon: Ph.envelopeSimple,
-                                          text: user?.email ?? '',
-                                          onEdit: () =>
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Your ALU email can’t be changed. It decides whether you are a student or staff.',
-                                                      ),
-                                                    ),
-                                                  ),
-                                          tooltip: 'About your email',
-                                        ),
-                                        _InfoLine(
-                                          icon: Ph.mapPin,
-                                          text: campus,
-                                          onEdit: _startEditing,
-                                          tooltip: 'Edit campus',
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                            const SizedBox(width: 6),
-                            _CornerButton(
-                              editing: _editing,
-                              onTap: _editing ? _stopEditing : _startEditing,
-                            ),
-                          ],
-                        ),
-                        if (_editing) ...[
-                          const SizedBox(height: 18),
-                          Form(
-                            key: _form,
-                            onChanged: () => setState(() {}),
-                            child: Column(
-                              children: [
-                                AppTextField(
-                                  controller: _name,
-                                  focusNode: _nameFocus,
-                                  label: 'Display name',
-                                  icon: Ph.user,
-                                  suffix: const Padding(
-                                    padding: EdgeInsets.only(right: 6),
-                                    child: Icon(Ph.pencilSimple, size: 18),
-                                  ),
-                                  textCapitalization: TextCapitalization.words,
-                                  textInputAction: TextInputAction.done,
-                                  maxLength: Validators.nameMax,
-                                  inputFormatters: Validators.nameFormatters,
-                                  validator: Validators.name,
-                                ),
-                                const SizedBox(height: 14),
-                                SelectField<String>(
-                                  label: 'Campus',
-                                  sheetTitle: 'Choose your campus',
-                                  icon: Ph.buildings,
-                                  value: _campus,
-                                  options: [
-                                    for (final c in const [
-                                      'Kigali Campus',
-                                      'Mauritius Campus',
-                                    ])
-                                      SelectOption(c, c, icon: Ph.mapPin),
-                                  ],
-                                  onChanged: (value) =>
-                                      setState(() => _campus = value),
-                                ),
-                                const SizedBox(height: 14),
-                                InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText: 'ALU email',
-                                    prefixIcon: const FieldIcon(
-                                      Ph.envelopeSimple,
-                                    ),
-                                    prefixIconConstraints:
-                                        const BoxConstraints(),
-                                    suffixIcon: const Padding(
-                                      padding: EdgeInsets.only(right: 12),
-                                      child: Icon(Ph.lockSimple, size: 18),
-                                    ),
-                                    enabled: false,
-                                  ),
-                                  child: FittedBox(
-                                    alignment: Alignment.centerLeft,
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      user?.email ?? '',
-                                      maxLines: 1,
-                                      style: theme.textTheme.bodyLarge
-                                          ?.copyWith(
-                                            color: colors.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    onPressed: _saving || !changed
-                                        ? null
-                                        : _save,
-                                    style: FilledButton.styleFrom(
-                                      minimumSize: const Size.fromHeight(52),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(26),
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    child: AnimatedSwitcher(
-                                      duration: const Duration(
-                                        milliseconds: 180,
-                                      ),
-                                      child: _saving
-                                          ? const SizedBox(
-                                              key: ValueKey('saving'),
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.4,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'Save settings',
-                                              key: ValueKey('label'),
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                _ProfileHeader(
+                  user: user,
+                  roleLabel: roleLabel,
+                  campus: campus,
+                  onEdit: () => showFormSheet<void>(
+                    context,
+                    builder: (_) => const _EditProfileSheet(),
                   ),
                 ),
                 if (user?.isAdmin == true) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   const _SectionTitle('View the app as'),
                   _Panel(
                     child: Row(
@@ -374,7 +82,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 const _SectionTitle('Appearance'),
                 _Panel(
                   child: Row(
@@ -416,175 +124,102 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({
+// The profile card: photo, name, email, role and campus, with one edit icon in the corner.
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
     required this.user,
-    required this.photo,
-    required this.editing,
-    required this.onPick,
+    required this.roleLabel,
+    required this.campus,
+    required this.onEdit,
   });
   final AppUser? user;
-  final File? photo;
-  final bool editing;
-  final VoidCallback onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 76,
-      height: 76,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.primary, width: 2),
-            ),
-            child: photo != null
-                ? CircleAvatar(radius: 32, backgroundImage: FileImage(photo!))
-                : UserAvatar(user: user, size: 64),
-          ),
-          Positioned(
-            right: -4,
-            bottom: -4,
-            child: Semantics(
-              button: true,
-              label: 'Change profile photo',
-              child: Tooltip(
-                message: 'Change profile photo',
-                triggerMode: TooltipTriggerMode.manual,
-                child: GestureDetector(
-                  onTap: onPick,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: colors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.surface, width: 2.5),
-                    ),
-                    child: Icon(Ph.camera, size: 15, color: colors.onPrimary),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CornerButton extends StatelessWidget {
-  const _CornerButton({required this.editing, required this.onTap});
-  final bool editing;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      button: true,
-      label: editing ? 'Cancel editing' : 'Edit profile',
-      child: Tooltip(
-        message: editing ? 'Cancel editing' : 'Edit profile',
-        triggerMode: TooltipTriggerMode.manual,
-        child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: editing ? Colors.transparent : colors.primaryContainer,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: editing ? colors.outlineVariant : Colors.transparent,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  editing ? Ph.xBold : Ph.pencilSimple,
-                  size: 16,
-                  color: editing ? colors.onSurfaceVariant : colors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  editing ? 'Cancel' : 'Edit',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: editing ? colors.onSurfaceVariant : colors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// One line of profile info with a small edit icon at its end.
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.text,
-    required this.onEdit,
-    required this.tooltip,
-    this.icon,
-    this.strong = false,
-  });
-  final String text, tooltip;
-  final IconData? icon;
-  final bool strong;
+  final String roleLabel, campus;
   final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
+    final dark = theme.brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? [const Color(0xFF14261C), const Color(0xFF0E1511)]
+              : [const Color(0xFFE4F4EA), const Color(0xFFF3FAF6)],
+        ),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Stack(
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 15, color: colors.onSurfaceVariant),
-            const SizedBox(width: 6),
-          ],
-          Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: strong
-                  ? theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    )
-                  : theme.textTheme.bodyMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-            ),
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.primary, width: 2.5),
+                ),
+                child: UserAvatar(user: user, size: 88),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                user?.displayName ?? '',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                user?.email ?? '',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  _Pill(icon: Ph.sealCheckFill, label: roleLabel),
+                  _Pill(icon: Ph.mapPin, label: campus),
+                ],
+              ),
+            ],
           ),
-          Semantics(
-            button: true,
-            label: tooltip,
-            child: Tooltip(
-              message: tooltip,
-              triggerMode: TooltipTriggerMode.manual,
-              child: GestureDetector(
-                onTap: onEdit,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Icon(
-                    Ph.pencilSimple,
-                    size: 16,
-                    color: colors.onSurfaceVariant,
+          Positioned(
+            right: -6,
+            top: -8,
+            child: Semantics(
+              button: true,
+              label: 'Edit profile',
+              child: Tooltip(
+                message: 'Edit profile',
+                triggerMode: TooltipTriggerMode.manual,
+                child: GestureDetector(
+                  onTap: onEdit,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: colors.surface.withValues(alpha: .9),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Icon(
+                      Ph.pencilSimple,
+                      size: 20,
+                      color: colors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -596,31 +231,221 @@ class _InfoLine extends StatelessWidget {
   }
 }
 
-class _RolePill extends StatelessWidget {
-  const _RolePill({required this.label});
+// The photo, name and campus are edited here, in the same sheet style as every other form.
+class _EditProfileSheet extends StatefulWidget {
+  const _EditProfileSheet();
+
+  @override
+  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<_EditProfileSheet> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late String _campus;
+  File? _photo;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().user;
+    _name = TextEditingController(text: user?.displayName ?? '');
+    _campus = user?.campus == 'Mauritius Campus'
+        ? 'Mauritius Campus'
+        : 'Kigali Campus';
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  bool get _changed {
+    final user = context.read<AuthProvider>().user;
+    final saved = (user?.campus ?? '').isEmpty ? 'Kigali Campus' : user!.campus;
+    return _photo != null ||
+        _name.text.trim() != (user?.displayName ?? '') ||
+        _campus != saved;
+  }
+
+  Future<void> _pickPhoto() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      imageQuality: 75,
+    );
+    if (file != null && mounted) setState(() => _photo = File(file.path));
+  }
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final auth = context.read<AuthProvider>();
+    setState(() => _saving = true);
+    final ok = await auth.updateProfile(
+      name: _name.text.trim().replaceAll(RegExp(r'\s+'), ' '),
+      campus: _campus,
+      photo: _photo,
+    );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Profile saved.' : auth.error ?? 'Could not save your profile.',
+        ),
+      ),
+    );
+    if (ok) navigator.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final user = context.watch<AuthProvider>().user;
+    return FormSheet(
+      icon: Ph.pencilSimple,
+      title: 'Edit profile',
+      subtitle: 'Change your photo, name or campus.',
+      primaryLabel: _saving ? 'Saving…' : 'Save settings',
+      busy: _saving,
+      onPrimary: _changed ? _save : null,
+      child: Form(
+        key: _form,
+        onChanged: () => setState(() {}),
+        child: Column(
+          children: [
+            Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.primary, width: 2),
+                    ),
+                    child: _photo != null
+                        ? CircleAvatar(
+                            radius: 38,
+                            backgroundImage: FileImage(_photo!),
+                          )
+                        : UserAvatar(user: user, size: 76),
+                  ),
+                  Positioned(
+                    right: -4,
+                    bottom: -4,
+                    child: Semantics(
+                      button: true,
+                      label: 'Change profile photo',
+                      child: Tooltip(
+                        message: 'Change profile photo',
+                        triggerMode: TooltipTriggerMode.manual,
+                        child: GestureDetector(
+                          onTap: _pickPhoto,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: colors.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: colors.surface,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: Icon(
+                              Ph.camera,
+                              size: 16,
+                              color: colors.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            AppTextField(
+              controller: _name,
+              label: 'Display name',
+              icon: Ph.user,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              maxLength: Validators.nameMax,
+              inputFormatters: Validators.nameFormatters,
+              validator: Validators.name,
+            ),
+            const SizedBox(height: 14),
+            SelectField<String>(
+              label: 'Campus',
+              sheetTitle: 'Choose your campus',
+              icon: Ph.buildings,
+              value: _campus,
+              options: [
+                for (final c in const ['Kigali Campus', 'Mauritius Campus'])
+                  SelectOption(c, c, icon: Ph.mapPin),
+              ],
+              onChanged: (value) => setState(() => _campus = value),
+            ),
+            const SizedBox(height: 14),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'ALU email',
+                prefixIcon: FieldIcon(Ph.envelopeSimple),
+                prefixIconConstraints: BoxConstraints(),
+                suffixIcon: Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: Icon(Ph.lockSimple, size: 18),
+                ),
+                enabled: false,
+              ),
+              child: FittedBox(
+                alignment: Alignment.centerLeft,
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  user?.email ?? '',
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(color: colors.onSurfaceVariant),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label});
+  final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: colors.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
+        color: colors.surface.withValues(alpha: .8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Ph.sealCheckFill, size: 14, color: colors.primary),
-          const SizedBox(width: 5),
+          Icon(icon, size: 16, color: colors.primary),
+          const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-              color: colors.onPrimaryContainer,
-            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
           ),
         ],
       ),

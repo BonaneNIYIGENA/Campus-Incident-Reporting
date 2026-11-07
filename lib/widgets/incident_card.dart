@@ -88,22 +88,35 @@ class IncidentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Issue: ',
-                            style: TextStyle(color: colors.onSurfaceVariant),
+                    // The same tag icon as the Category field on the report form, for every issue.
+                    Row(
+                      children: [
+                        Icon(Ph.tag, size: 15, color: colors.primary),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Issue: ',
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: incident.category,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
                           ),
-                          TextSpan(
-                            text: incident.category,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 3),
                     Row(
