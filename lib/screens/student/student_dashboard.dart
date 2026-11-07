@@ -3,14 +3,16 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/incident_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../screens/auth/auth_gate.dart';
 import '../../screens/incident_screens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/incident_card.dart';
 
 class StudentDashboard extends StatelessWidget {
-  const StudentDashboard({super.key, required this.name});
+  const StudentDashboard({super.key, required this.name, this.campus = ''});
   final String name;
+  final String campus;
 
   @override
   Widget build(BuildContext context) {
@@ -19,15 +21,28 @@ class StudentDashboard extends StatelessWidget {
     final uid = context.watch<AuthProvider>().user?.uid;
     final own = provider.items.where((item) => item.reporterId == uid).toList();
     final first = name.trim().split(RegExp(r'\s+')).first;
-    final recent = own.take(3).toList();
+    final recent = own.take(4).toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Campus Care'),
+        title: Text('Good day, $first'),
         actions: [
           IconButton(
-            tooltip: 'Account and preferences',
-            onPressed: () => _open(context, const AccountSettingsScreen()),
-            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Notifications',
+            onPressed: () => _open(context, const NotificationsScreen()),
+            icon: const Icon(Icons.notifications_none_rounded),
+          ),
+          IconButton(
+            tooltip: 'Toggle theme',
+            onPressed: () => context.read<ThemeProvider>().setMode(
+              theme.brightness == Brightness.dark
+                  ? ThemeMode.light
+                  : ThemeMode.dark,
+            ),
+            icon: Icon(
+              theme.brightness == Brightness.dark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -48,61 +63,53 @@ class StudentDashboard extends StatelessWidget {
                   ),
                   children: [
                     Text(
-                      'Good day, $first',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Let’s make campus better, together.',
+                      'Here’s what needs attention on your campus.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    _ReportBanner(
-                      onPressed: () =>
-                          _open(context, const CreateIncidentScreen()),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
+                    const SizedBox(height: 18),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: wide ? 2.5 : 1.55,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        Expanded(
-                          child: _Metric(
-                            label: 'Submitted',
-                            value: own
-                                .where((i) => i.status == 'Submitted')
-                                .length,
-                            icon: Icons.assignment_outlined,
-                            color: AppTheme.green,
-                          ),
+                        _Metric(
+                          label: 'Total reports',
+                          value: own.length,
+                          icon: Icons.description_outlined,
+                          color: AppTheme.green,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _Metric(
-                            label: 'In progress',
-                            value: own
-                                .where(
-                                  (i) =>
-                                      i.status == 'In Progress' ||
-                                      i.status == 'Under Review',
-                                )
-                                .length,
-                            icon: Icons.pending_actions_rounded,
-                            color: AppTheme.amber,
-                          ),
+                        _Metric(
+                          label: 'Pending',
+                          value: own
+                              .where((i) => i.status == 'Submitted')
+                              .length,
+                          icon: Icons.schedule_rounded,
+                          color: AppTheme.amber,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _Metric(
-                            label: 'Resolved',
-                            value: own
-                                .where((i) => i.status == 'Resolved')
-                                .length,
-                            icon: Icons.check_circle_outline_rounded,
-                            color: const Color(0xFF42856A),
-                          ),
+                        _Metric(
+                          label: 'Unresolved',
+                          value: own
+                              .where(
+                                (i) =>
+                                    i.status != 'Resolved' &&
+                                    i.status != 'Rejected',
+                              )
+                              .length,
+                          icon: Icons.error_outline_rounded,
+                          color: AppTheme.red,
+                        ),
+                        _Metric(
+                          label: 'Resolved',
+                          value: own
+                              .where((i) => i.status == 'Resolved')
+                              .length,
+                          icon: Icons.check_circle_outline_rounded,
+                          color: const Color(0xFF42856A),
                         ),
                       ],
                     ),
@@ -138,10 +145,14 @@ class StudentDashboard extends StatelessWidget {
                         subtitle: provider.error!,
                       )
                     else if (recent.isEmpty)
-                      _MessageCard(
-                        icon: Icons.inbox_outlined,
-                        title: 'No reports yet',
-                        subtitle: 'Your reports and their status updates will appear here.',
+                      Column(
+                        children: [
+                          _MessageCard(
+                            icon: Icons.inbox_outlined,
+                            title: 'No reports yet',
+                            subtitle: 'Your reports and their status updates will appear here.',
+                          ),
+                        ],
                       )
                     else
                       ...recent.map(
@@ -168,32 +179,108 @@ class StudentDashboard extends StatelessWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'New report',
         onPressed: () => _open(context, const CreateIncidentScreen()),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New report'),
+        child: const Icon(Icons.add_rounded),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          if (index == 1) {
-            _open(context, const IncidentListScreen(staffView: false));
-          }
-          if (index == 2) _open(context, const AccountSettingsScreen());
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            label: 'Browse',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            label: 'Account',
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        height: 76,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 7,
+        child: Row(
+          children: [
+            Expanded(
+              child: _BottomNavItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                selected: true,
+                onTap: () {},
+              ),
+            ),
+            Expanded(
+              child: _BottomNavItem(
+                icon: Icons.assignment_outlined,
+                label: 'Reports',
+                onTap: () =>
+                    _open(context, const IncidentListScreen(staffView: false)),
+              ),
+            ),
+            SizedBox(
+              width: 82,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _BottomNavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Account',
+                customIcon: context.watch<AuthProvider>().user?.photoUrl == null
+                    ? null
+                    : ClipOval(
+                        child: Image.network(
+                          context.watch<AuthProvider>().user!.photoUrl!,
+                          width: 25,
+                          height: 25,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              const Icon(Icons.person_outline_rounded),
+                        ),
+                      ),
+                onTap: () => _open(context, const AccountSettingsScreen()),
+              ),
+            ),
+            Expanded(
+              child: _BottomNavItem(
+                icon: Icons.logout_rounded,
+                label: 'Logout',
+                onTap: () => context.read<AuthProvider>().signOut(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+    this.customIcon,
+  });
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final Widget? customIcon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          customIcon ?? Icon(icon, color: color),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: color),
           ),
         ],
       ),
@@ -203,68 +290,6 @@ class StudentDashboard extends StatelessWidget {
 
 void _open(BuildContext context, Widget screen) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-
-class _ReportBanner extends StatelessWidget {
-  const _ReportBanner({required this.onPressed});
-  final VoidCallback onPressed;
-  @override
-  Widget build(BuildContext context) => Material(
-    color: AppTheme.deepGreen,
-    borderRadius: BorderRadius.circular(20),
-    child: InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.all(21),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'See something that needs attention?',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 7),
-                  Text(
-                    'Tell the right team and follow progress.',
-                    style: TextStyle(color: Color(0xFFD9F2E3)),
-                  ),
-                  SizedBox(height: 17),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Report an issue',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      SizedBox(width: 7),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(Icons.campaign_outlined, color: Colors.white, size: 36),
-          ],
-        ),
-      ),
-    ),
-  );
-}
 
 class _Metric extends StatelessWidget {
   const _Metric({
@@ -280,30 +305,55 @@ class _Metric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 12),
-            Text(
-              value.toString(),
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: theme.brightness == Brightness.dark ? .14 : .08,
         ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: color.withValues(alpha: .22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value.toString(),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

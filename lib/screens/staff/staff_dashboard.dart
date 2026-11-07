@@ -136,6 +136,12 @@ class StaffDashboard extends StatelessWidget {
                           icon: Icons.check_circle_outline_rounded,
                           color: const Color(0xFF42856A),
                         ),
+                        _StaffMetric(
+                          label: 'Rejected',
+                          count: _count(reports, 'Rejected'),
+                          icon: Icons.cancel_outlined,
+                          color: AppTheme.red,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),

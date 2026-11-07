@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cir/models/app_user.dart';
 import 'package:cir/providers/incident_provider.dart';
 import 'package:cir/services/incident_service.dart';
@@ -35,6 +37,7 @@ class _BrokenService extends IncidentService {
     required bool anonymous,
     required String reporterId,
     required String reporterName,
+    File? photo,
     String? imageUrl,
   }) => Future.error(
     FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),

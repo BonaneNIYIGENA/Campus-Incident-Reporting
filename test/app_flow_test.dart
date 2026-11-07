@@ -13,6 +13,14 @@ late IncidentService incidents;
 Future<Widget> app({MockUser? user, MockFirebaseAuth? auth}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
+  if (user != null) {
+    await db.collection('users').doc(user.uid).set({
+      'role': user.email == 'jordan@alueducation.com' ? 'staff' : 'student',
+      'campus': 'Kigali Campus',
+      'name': user.displayName ?? 'Student',
+      'email': user.email ?? '',
+    });
+  }
   return CirApp(
     preferences: prefs,
     authService: AuthService(
@@ -117,7 +125,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Good day, Aline'), findsOneWidget);
 
-    await tester.tap(find.text('Browse'));
+    await tester.tap(find.text('Reports'));
     await tester.pumpAndSettle();
     expect(find.text('Campus reports'), findsOneWidget);
     expect(find.text('Light out near the library'), findsOneWidget);
@@ -132,7 +140,7 @@ void main() {
   ) async {
     await tester.pumpWidget(await app(user: student()));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New report'));
+    await tester.tap(find.byTooltip('New report'));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Submit report'));
@@ -152,9 +160,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Facilities').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Campus location').last);
+    final facilityField = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).at(1),
+    );
+    facilityField.onChanged!('Classrooms');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Library').last);
+    final areaField = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>).at(2),
+    );
+    areaField.onChanged!('Room 101');
     await tester.pumpAndSettle();
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
@@ -168,6 +182,8 @@ void main() {
     expect(data['title'], 'Damaged lamp near library');
     expect(data['reporterId'], 'student1');
     expect(data['status'], 'Submitted');
+    await tester.drag(find.byType(ListView).first, const Offset(0, -650));
+    await tester.pumpAndSettle();
     expect(find.text('Damaged lamp near library'), findsOneWidget);
   });
 
@@ -180,6 +196,8 @@ void main() {
     await tester.tap(find.text('View all'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Water pressure is low in Residence B'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -500));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Update status'));
     await tester.pumpAndSettle();

@@ -7,7 +7,10 @@ import 'package:provider/provider.dart';
 import '../models/incident.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
+import '../providers/facility_provider.dart';
+import '../models/campus_facility.dart';
 import '../utils/validators.dart';
+import '../utils/campus_locations.dart';
 import '../widgets/incident_card.dart';
 
 const incidentCategories = [
@@ -19,21 +22,139 @@ const incidentCategories = [
   'Safety',
   'Other',
 ];
-const campusLocations = [
-  'Main Campus',
-  'Kigali Campus',
-  'Residence',
-  'Library',
-  'Cafeteria',
-  'Other',
-];
-const incidentStatuses = [
-  'Submitted',
-  'Under Review',
-  'In Progress',
-  'Resolved',
-  'Rejected',
-];
+const incidentStatuses = ['Submitted', 'In Progress', 'Resolved', 'Rejected'];
+
+class _FacilityAreaFields extends StatelessWidget {
+  const _FacilityAreaFields({
+    required this.campus,
+    required this.facility,
+    required this.area,
+    required this.onChanged,
+  });
+  final String campus;
+  final String? facility;
+  final String? area;
+  final void Function(String?, String?) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final Stream<List<CampusFacility>> facilityStream;
+    try {
+      facilityStream = context.read<FacilityProvider>().watch(campus);
+    } catch (_) {
+      return _buildFields(context, const <CampusFacility>[], true);
+    }
+    return StreamBuilder<List<CampusFacility>>(
+      stream: facilityStream,
+      builder: (context, snapshot) {
+        final remote = snapshot.data ?? const <CampusFacility>[];
+        final choices = Map<String, List<String>>.from(
+          campusAreas[campus] ?? campusAreas['Kigali Campus']!,
+        )..addAll({for (final item in remote) item.name: item.areas});
+        final facilityValue = choices.containsKey(facility) ? facility : null;
+        final areas = choices[facilityValue] ?? const <String>[];
+        return Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Campus: $campus',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              key: ValueKey('facility-$campus'),
+              initialValue: facilityValue,
+              validator: (value) => Validators.required(value, 'Facility'),
+              decoration: const InputDecoration(labelText: 'Facility'),
+              items: choices.keys
+                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                  .toList(),
+              onChanged: (value) => onChanged(value, null),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              key: ValueKey('area-$campus-$facilityValue'),
+              initialValue: areas.contains(area) ? area : null,
+              validator: (value) => Validators.required(value, 'Specific area'),
+              decoration: const InputDecoration(labelText: 'Specific area'),
+              items: areas
+                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                  .toList(),
+              onChanged: (value) => onChanged(facilityValue, value),
+            ),
+            if (snapshot.hasError)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Using the campus default facility list.'),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFields(
+    BuildContext context,
+    List<CampusFacility> remote,
+    bool fallback,
+  ) {
+    final choices = Map<String, List<String>>.from(
+      campusAreas[campus] ?? campusAreas['Kigali Campus']!,
+    )..addAll({for (final item in remote) item.name: item.areas});
+    final facilityValue = choices.containsKey(facility) ? facility : null;
+    final areas = choices[facilityValue] ?? const <String>[];
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Campus: $campus',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+        ),
+        DropdownButtonFormField<String>(
+          key: ValueKey('facility-$campus'),
+          initialValue: facilityValue,
+          validator: (value) => Validators.required(value, 'Facility'),
+          decoration: const InputDecoration(labelText: 'Facility'),
+          items: choices.keys
+              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+              .toList(),
+          onChanged: (value) => onChanged(value, null),
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<String>(
+          key: ValueKey('area-$campus-$facilityValue'),
+          initialValue: areas.contains(area) ? area : null,
+          validator: (value) => Validators.required(value, 'Specific area'),
+          decoration: const InputDecoration(labelText: 'Specific area'),
+          items: areas
+              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+              .toList(),
+          onChanged: (value) => onChanged(facilityValue, value),
+        ),
+        if (fallback)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Using the campus default facility list.'),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 class CreateIncidentScreen extends StatefulWidget {
   const CreateIncidentScreen({super.key});
@@ -41,11 +162,66 @@ class CreateIncidentScreen extends StatefulWidget {
   State<CreateIncidentScreen> createState() => _CreateIncidentScreenState();
 }
 
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = context.watch<AuthProvider>().user?.uid;
+    final reports = context
+        .watch<IncidentProvider>()
+        .items
+        .where((item) => item.reporterId == uid && item.history.length > 1)
+        .toList();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications')),
+      body: reports.isEmpty
+          ? const Center(
+              child: Text(
+                'You’re all caught up. Status updates will appear here.',
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: reports.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final report = reports[index];
+                final event = report.history.last;
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.notifications_active_outlined),
+                    ),
+                    title: Text('${report.title}: ${event.status}'),
+                    subtitle: Text(
+                      event.note.isEmpty
+                          ? 'Your report status changed.'
+                          : event.note,
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => IncidentDetailScreen(
+                          incident: report,
+                          staffView: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
 class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
   final _form = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
-  String? _category, _building;
+  String? _category, _facility, _area;
   File? _photo;
   bool _anonymous = false, _picking = false;
   @override
@@ -86,7 +262,8 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
         title: _title.text,
         description: _description.text,
         category: _category!,
-        building: _building!,
+        building:
+            '${context.read<AuthProvider>().user?.campus ?? 'Campus'} · $_facility · $_area',
         anonymous: _anonymous,
         photo: _photo,
         reporterId: context.read<AuthProvider>().user?.uid ?? 'demo-student',
@@ -167,16 +344,18 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
                   onChanged: (value) => setState(() => _category = value),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _building,
-                  validator: (value) => Validators.required(value, 'Location'),
-                  decoration: const InputDecoration(
-                    labelText: 'Campus location',
-                  ),
-                  items: campusLocations
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                      .toList(),
-                  onChanged: (value) => setState(() => _building = value),
+                _FacilityAreaFields(
+                  campus:
+                      context.watch<AuthProvider>().user?.campus.isNotEmpty ==
+                          true
+                      ? context.watch<AuthProvider>().user!.campus
+                      : 'Kigali Campus',
+                  facility: _facility,
+                  area: _area,
+                  onChanged: (facility, area) => setState(() {
+                    _facility = facility;
+                    _area = area;
+                  }),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
@@ -408,19 +587,47 @@ class IncidentDetailScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text('${item.category} · ${item.building}'),
           const SizedBox(height: 18),
-          if (item.imagePath != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Image.file(
-                File(item.imagePath!),
-                height: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox(
-                  height: 90,
-                  child: Center(child: Icon(Icons.broken_image_outlined)),
-                ),
-              ),
-            ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: item.imagePath == null
+                ? Container(
+                    height: 190,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.image_outlined,
+                            size: 42,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('No photo attached'),
+                        ],
+                      ),
+                    ),
+                  )
+                : Image.network(
+                    item.imagePath!,
+                    height: 220,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 190,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      child: const Center(
+                        child: Icon(Icons.broken_image_outlined),
+                      ),
+                    ),
+                  ),
+          ),
           const SizedBox(height: 18),
           Text(item.description, style: Theme.of(context).textTheme.bodyLarge),
           if (!staffView) ...[
