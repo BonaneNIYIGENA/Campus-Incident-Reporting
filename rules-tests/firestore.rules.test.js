@@ -469,6 +469,105 @@ describe('deleting incidents', () => {
   });
 });
 
+describe('alert states', () => {
+  const state = (overrides = {}) => ({
+    read: true,
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  });
+
+  test('a verified person keeps their own read and deleted marks', async () => {
+    const me = student();
+    const ref = doc(db(me), 'users', me.uid, 'alertStates', 'r1:2');
+    await assertSucceeds(setDoc(ref, state()));
+    await assertSucceeds(setDoc(ref, state({ deleted: true }), { merge: true }));
+    await assertSucceeds(getDoc(ref));
+  });
+
+  test('nobody else can read or write them', async () => {
+    const me = student();
+    await assertSucceeds(
+      setDoc(doc(db(me), 'users', me.uid, 'alertStates', 'r1:2'), state()),
+    );
+    const other = student('other');
+    await assertFails(getDoc(doc(db(other), 'users', me.uid, 'alertStates', 'r1:2')));
+    await assertFails(
+      setDoc(doc(db(other), 'users', me.uid, 'alertStates', 'r1:3'), state()),
+    );
+    await assertFails(getDoc(doc(db(staff), 'users', me.uid, 'alertStates', 'r1:2')));
+  });
+
+  test('only the expected fields and types are allowed', async () => {
+    const me = student();
+    const ref = doc(db(me), 'users', me.uid, 'alertStates', 'r1:2');
+    await assertFails(setDoc(ref, state({ title: 'sneaky' })));
+    await assertFails(setDoc(ref, state({ read: 'yes' })));
+    await assertFails(setDoc(ref, { read: true, updatedAt: Timestamp.now() }));
+    await assertFails(
+      setDoc(doc(db({ ...me, verified: false }), 'users', me.uid, 'alertStates', 'x'), state()),
+    );
+  });
+});
+
+describe('saving a profile from the app', () => {
+  const existing = {
+    name: 'Aline Student',
+    email: 'student1@alustudent.com',
+    role: 'student',
+    campus: 'Kigali Campus',
+  };
+  const photo = 'https://res.cloudinary.com/dgxaazbuq/image/upload/v1/cir/profiles/a.jpg';
+
+  async function seedProfile(data = existing) {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'student1'), data);
+    });
+  }
+  const ref = () => doc(db(student()), 'users', 'student1');
+
+  test('name, campus and photo can be saved together', async () => {
+    await seedProfile();
+    await assertSucceeds(
+      updateDoc(ref(), { name: 'Aline N', campus: 'Mauritius Campus', photoUrl: photo }),
+    );
+  });
+
+  test('each field can be saved on its own', async () => {
+    await seedProfile();
+    await assertSucceeds(updateDoc(ref(), { campus: 'Mauritius Campus' }));
+    await assertSucceeds(updateDoc(ref(), { photoUrl: photo }));
+    await assertSucceeds(updateDoc(ref(), { name: 'Aline Niyonsenga' }));
+  });
+
+  test('an older profile without a campus can get one', async () => {
+    await seedProfile({ name: 'Aline', email: 'student1@alustudent.com', role: 'student' });
+    await assertSucceeds(updateDoc(ref(), { campus: 'Kigali Campus' }));
+  });
+
+  test('a photo that is not on our Cloudinary is refused', async () => {
+    await seedProfile();
+    await assertFails(updateDoc(ref(), { photoUrl: 'https://example.com/a.jpg' }));
+  });
+
+  test('a missing profile can be created with the allowed fields', async () => {
+    await assertSucceeds(
+      setDoc(ref(), {
+        name: 'Aline N',
+        email: 'student1@alustudent.com',
+        role: 'student',
+        campus: 'Kigali Campus',
+        createdAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test('role and email can never be changed', async () => {
+    await seedProfile();
+    await assertFails(updateDoc(ref(), { role: 'staff' }));
+    await assertFails(updateDoc(ref(), { email: 'x@alustudent.com' }));
+  });
+});
+
 describe('the admin account', () => {
   test('keeps the student role on its own profile', async () => {
     const profileFor = (role) => ({

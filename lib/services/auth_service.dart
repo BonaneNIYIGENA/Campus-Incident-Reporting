@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'dart:async';
 import 'dart:io';
 
 import '../config/cloudinary_config.dart';
@@ -29,7 +30,57 @@ class AuthService {
   final FirebaseFirestore _db;
   final ImageUploader _uploader;
 
-  Stream<AppUser?> userChanges() => _auth.userChanges().asyncMap(_loadAppUser);
+  // The profile document in Firestore is the source of truth: it is streamed live, so a
+  // saved name, photo or campus shows up everywhere and survives a restart.
+  Stream<AppUser?> userChanges() {
+    late final StreamController<AppUser?> controller;
+    StreamSubscription<User?>? authSub;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? profileSub;
+    Timer? fallback;
+
+    void stopProfile() {
+      fallback?.cancel();
+      profileSub?.cancel();
+      profileSub = null;
+    }
+
+    controller = StreamController<AppUser?>(
+      onListen: () {
+        authSub = _auth.userChanges().listen((user) {
+          stopProfile();
+          if (user == null) {
+            controller.add(null);
+            return;
+          }
+          var emitted = false;
+          void emit(Map<String, dynamic>? data) {
+            emitted = true;
+            controller.add(_compose(user, data));
+          }
+
+          // If the database is unreachable, still let the person in with the sign-in details.
+          fallback = Timer(const Duration(seconds: 5), () {
+            if (!emitted) emit(null);
+          });
+          profileSub = _db
+              .collection('users')
+              .doc(user.uid)
+              .snapshots()
+              .listen(
+                (snapshot) => emit(snapshot.data()),
+                onError: (_) {
+                  if (!emitted) emit(null);
+                },
+              );
+        });
+      },
+      onCancel: () {
+        stopProfile();
+        return authSub?.cancel();
+      },
+    );
+    return controller.stream;
+  }
 
   AppUser? get currentUser => _toAppUser(_auth.currentUser);
 
@@ -101,6 +152,20 @@ class AuthService {
     }
   }
 
+  // Says the same thing whether or not the account exists, so addresses can't be probed.
+  Future<void> sendPasswordReset(String email) async {
+    final address = email.trim().toLowerCase();
+    if (roleFromAluEmail(address) == null) {
+      throw const AuthFailure(_domainMessage);
+    }
+    try {
+      await _auth.sendPasswordResetEmail(email: address);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') return;
+      throw AuthFailure(_messageFor(e.code));
+    }
+  }
+
   Future<void> signOut() => _auth.signOut();
 
   Future<AppUser> updateProfile({
@@ -111,29 +176,57 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) throw const AuthFailure('Sign in again to continue.');
     try {
-      if (name != null && name.trim().isNotEmpty) {
-        await user.updateDisplayName(name.trim());
-        await _db.collection('users').doc(user.uid).update({
-          'name': name.trim(),
-        });
-      }
-      if (campus != null && campus.trim().isNotEmpty) {
-        await _db.collection('users').doc(user.uid).update({'campus': campus});
-      }
+      final fields = <String, dynamic>{};
+      if (name != null && name.trim().isNotEmpty) fields['name'] = name.trim();
+      if (campus != null && campus.trim().isNotEmpty) fields['campus'] = campus;
       if (photo != null) {
-        final url = await _uploader.upload(
+        fields['photoUrl'] = await _uploader.upload(
           photo,
           folder: CloudinaryConfig.profileFolder,
         );
-        await user.updatePhotoURL(url);
-        await _db.collection('users').doc(user.uid).update({'photoUrl': url});
       }
-      await user.reload();
+      if (fields.isNotEmpty) await _saveProfile(user, fields);
+      // The copy kept by sign-in is best effort; the database already has the change.
+      try {
+        if (fields['name'] != null) {
+          await user.updateDisplayName(fields['name']);
+        }
+        if (fields['photoUrl'] != null) {
+          await user.updatePhotoURL(fields['photoUrl']);
+        }
+      } on FirebaseAuthException {
+        // Ignored on purpose.
+      }
       return (await _loadAppUser(_auth.currentUser))!;
     } on ImageUploadFailure catch (e) {
       throw AuthFailure(e.message);
     } on FirebaseException catch (e) {
-      throw AuthFailure(e.message ?? 'Could not update your profile.');
+      throw AuthFailure(
+        e.code == 'permission-denied'
+            ? 'The database refused the change. The latest security rules need to be published, then try again.'
+            : e.message ?? 'Could not update your profile.',
+      );
+    }
+  }
+
+  Future<void> _saveProfile(User user, Map<String, dynamic> fields) async {
+    final ref = _db.collection('users').doc(user.uid);
+    try {
+      await ref.update(fields);
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found') rethrow;
+      // Accounts made before profiles were stored get their document now.
+      final email = (user.email ?? '').toLowerCase();
+      await ref.set({
+        'name': fields['name'] ?? user.displayName ?? email.split('@').first,
+        'email': email,
+        'role': roleFromAluEmail(email)?.name ?? 'student',
+        'campus': fields['campus'] ?? 'Kigali Campus',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (fields['photoUrl'] != null) {
+        await ref.update({'photoUrl': fields['photoUrl']});
+      }
     }
   }
 
@@ -152,21 +245,26 @@ class AuthService {
     );
   }
 
-  Future<AppUser?> _loadAppUser(User? user) async {
-    final basic = _toAppUser(user);
-    if (basic == null) return null;
-    try {
-      final profile = await _db.collection('users').doc(user!.uid).get();
-      final data = profile.data() ?? const <String, dynamic>{};
-      final saved = data['campus'] as String? ?? '';
+  // Sign-in details plus whatever the profile document says; the document wins.
+  AppUser _compose(User user, Map<String, dynamic>? data) {
+    final basic = _toAppUser(user)!;
+    final name = (data?['name'] as String?)?.trim() ?? '';
+    final campus = data?['campus'] as String? ?? '';
+    return basic.copyWith(
+      displayName: name.isEmpty ? null : name,
+      photoUrl: data?['photoUrl'] as String?,
       // Accounts made before campuses existed default to Kigali.
-      final savedPhoto = data['photoUrl'] as String?;
-      return basic.copyWith(
-        campus: saved.isEmpty ? 'Kigali Campus' : saved,
-        photoUrl: basic.photoUrl ?? savedPhoto,
-      );
+      campus: campus.isEmpty ? 'Kigali Campus' : campus,
+    );
+  }
+
+  Future<AppUser?> _loadAppUser(User? user) async {
+    if (user == null) return null;
+    try {
+      final profile = await _db.collection('users').doc(user.uid).get();
+      return _compose(user, profile.data());
     } on FirebaseException {
-      return basic;
+      return _compose(user, null);
     }
   }
 

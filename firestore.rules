@@ -76,6 +76,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Which alerts a person has read or deleted, kept under their own account.
+    match /users/{uid}/alertStates/{key} {
+      allow read: if isVerified() && request.auth.uid == uid;
+      allow create, update: if isVerified()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['read', 'deleted', 'updatedAt'])
+        && (!('read' in request.resource.data.keys()) || request.resource.data.read is bool)
+        && (!('deleted' in request.resource.data.keys()) || request.resource.data.deleted is bool)
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
     match /campusFacilities/{campus}/facilities/{facilityId} {
       allow read: if isVerified();
       allow create, update, delete: if isStaff()

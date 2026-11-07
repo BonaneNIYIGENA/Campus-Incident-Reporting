@@ -1,48 +1,84 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-// Which alerts the signed-in person has read or deleted. Kept per account on the phone.
+// Which alerts the signed-in person has read or deleted. Stored in the database under their
+// account, so it is the same after a restart or on another phone.
 class AlertsProvider extends ChangeNotifier {
+  AlertsProvider({this.firestore});
+
+  final FirebaseFirestore? firestore;
+  FirebaseFirestore get _db => firestore ?? FirebaseFirestore.instance;
+
   String? _uid;
-  Set<String> _read = {};
-  Set<String> _deleted = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
+  Set<String> _storedRead = {}, _storedDeleted = {};
+  // Changes made in this session show straight away, even before the database confirms them.
+  final _localRead = <String>{}, _localDeleted = <String>{};
 
-  bool isRead(String key) => _read.contains(key);
-  bool isDeleted(String key) => _deleted.contains(key);
+  bool isRead(String key) =>
+      _storedRead.contains(key) || _localRead.contains(key);
+  bool isDeleted(String key) =>
+      _storedDeleted.contains(key) || _localDeleted.contains(key);
 
-  Future<void> bind(String? uid) async {
+  CollectionReference<Map<String, dynamic>> get _states =>
+      _db.collection('users').doc(_uid).collection('alertStates');
+
+  void bind(String? uid) {
     if (uid == _uid) return;
+    _sub?.cancel();
+    _sub = null;
     _uid = uid;
-    _read = {};
-    _deleted = {};
-    if (uid == null) {
+    _storedRead = {};
+    _storedDeleted = {};
+    _localRead.clear();
+    _localDeleted.clear();
+    if (uid == null) return;
+    _sub = _states.snapshots().listen((snapshot) {
+      _storedRead = {
+        for (final doc in snapshot.docs)
+          if (doc.data()['read'] == true) doc.id,
+      };
+      _storedDeleted = {
+        for (final doc in snapshot.docs)
+          if (doc.data()['deleted'] == true) doc.id,
+      };
       notifyListeners();
-      return;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    if (_uid != uid) return;
-    _read = (prefs.getStringList('alerts_read_$uid') ?? const []).toSet();
-    _deleted = (prefs.getStringList('alerts_deleted_$uid') ?? const []).toSet();
-    notifyListeners();
+    }, onError: (_) {});
   }
 
   void markRead(Iterable<String> keys) {
-    _read.addAll(keys);
-    _save();
+    final fresh = keys.where((key) => !isRead(key)).toList();
+    if (fresh.isEmpty) return;
+    _localRead.addAll(fresh);
+    notifyListeners();
+    for (final key in fresh) {
+      _write(key, {'read': true});
+    }
   }
 
   void delete(String key) {
-    _deleted.add(key);
-    _save();
+    _localDeleted.add(key);
+    _localRead.add(key);
+    notifyListeners();
+    _write(key, {'read': true, 'deleted': true});
   }
 
-  void _save() {
-    notifyListeners();
-    final uid = _uid;
-    if (uid == null) return;
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setStringList('alerts_read_$uid', _read.toList());
-      prefs.setStringList('alerts_deleted_$uid', _deleted.toList());
-    });
+  void _write(String key, Map<String, dynamic> fields) {
+    if (_uid == null) return;
+    _states
+        .doc(key)
+        .set({
+          ...fields,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true))
+        .catchError((Object _) {});
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }

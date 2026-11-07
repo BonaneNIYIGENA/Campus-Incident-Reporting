@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -93,6 +94,7 @@ class CirApp extends StatelessWidget {
     this.incidentService,
     this.initialScreen,
     this.testMode = false,
+    this.firestore,
   });
 
   final SharedPreferences? preferences;
@@ -100,6 +102,7 @@ class CirApp extends StatelessWidget {
   final IncidentService? incidentService;
   final Widget? initialScreen;
   final bool testMode;
+  final FirebaseFirestore? firestore;
 
   @override
   Widget build(BuildContext context) {
@@ -120,12 +123,13 @@ class CirApp extends StatelessWidget {
           update: (_, auth, incidents) => incidents!..bind(auth.user),
         ),
         ChangeNotifierProxyProvider<AuthProvider, AlertsProvider>(
-          create: (_) => AlertsProvider(),
+          create: (_) => AlertsProvider(firestore: firestore),
           update: (_, auth, alerts) => alerts!..bind(auth.user?.uid),
         ),
         ChangeNotifierProvider(create: (_) => ThemeProvider(preferences!)),
         ChangeNotifierProvider(
-          create: (_) => FacilityProvider(FacilityService()),
+          create: (_) =>
+              FacilityProvider(FacilityService(firestore: firestore)),
         ),
       ],
       child: Consumer<ThemeProvider>(

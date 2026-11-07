@@ -60,8 +60,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       final verified = await _service.refreshVerification();
       final fresh = _service.currentUser;
-      if (fresh != null) {
-        _user = fresh.copyWith(role: _user?.role, campus: _user?.campus);
+      if (fresh != null && _user != null) {
+        _user = _user!.copyWith(emailVerified: fresh.emailVerified);
+      } else if (fresh != null) {
+        _user = fresh;
       }
       notifyListeners();
       return verified;
@@ -77,6 +79,27 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> sendPasswordReset(String email) async {
+    try {
+      await _service.sendPasswordReset(email);
+      return true;
+    } on AuthFailure catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Could not send the email. Wait a moment and try again.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearError() {
+    if (_error == null) return;
+    _error = null;
+    notifyListeners();
   }
 
   Future<void> signOut() => _service.signOut();
