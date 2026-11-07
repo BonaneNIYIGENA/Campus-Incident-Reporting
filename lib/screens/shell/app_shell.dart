@@ -70,6 +70,8 @@ class _StackWatcher extends NavigatorObserver {
 class _AppShellState extends State<AppShell> {
   final _nav = GlobalKey<NavigatorState>();
   final _tab = ValueNotifier<int>(0);
+  NavigatorState? _rootNav;
+  TopPanelRoute? _panel;
   final _canPop = ValueNotifier<bool>(false);
   late final _watcher = _StackWatcher(() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -186,12 +188,14 @@ class _AppShellState extends State<AppShell> {
   void _openAlerts() {
     final navigator = _nav.currentState!;
     // On the root navigator so the nav bar greys out with the rest of the screen.
-    Navigator.of(context, rootNavigator: true).push(
-      TopPanelRoute(
-        builder: (_) =>
-            NotificationsPanel(staffView: _staff, navigator: navigator),
-      ),
+    final root = Navigator.of(context, rootNavigator: true);
+    final route = TopPanelRoute(
+      builder: (_) =>
+          NotificationsPanel(staffView: _staff, navigator: navigator),
     );
+    _rootNav = root;
+    _panel = route;
+    root.push(route);
   }
 
   void _onTap(_Dest dest) {
@@ -219,6 +223,9 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    // The panel lives on the root navigator, so close it with the shell (for example on sign-out).
+    final panel = _panel;
+    if (panel != null && panel.isActive) _rootNav?.removeRoute(panel);
     _tab.dispose();
     _canPop.dispose();
     super.dispose();

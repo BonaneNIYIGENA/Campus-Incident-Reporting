@@ -156,48 +156,52 @@ class _ProfileHeader extends StatelessWidget {
         border: Border.all(color: colors.outlineVariant),
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.primary, width: 2.5),
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.primary, width: 2.5),
+                  ),
+                  child: UserAvatar(user: user, size: 88),
                 ),
-                child: UserAvatar(user: user, size: 88),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                user?.displayName ?? '',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                const SizedBox(height: 12),
+                Text(
+                  user?.displayName ?? '',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                user?.email ?? '',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
+                const SizedBox(height: 2),
+                Text(
+                  user?.email ?? '',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  _Pill(icon: Ph.sealCheckFill, label: roleLabel),
-                  _Pill(icon: Ph.mapPin, label: campus),
-                ],
-              ),
-            ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _Pill(icon: Ph.sealCheckFill, label: roleLabel),
+                    _Pill(icon: Ph.mapPin, label: campus),
+                  ],
+                ),
+              ],
+            ),
           ),
           Positioned(
-            right: -6,
-            top: -8,
+            right: 0,
+            top: 0,
             child: Semantics(
               button: true,
               label: 'Edit profile',

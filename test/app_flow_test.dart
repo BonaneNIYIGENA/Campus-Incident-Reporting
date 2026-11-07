@@ -1,5 +1,7 @@
 import 'package:cir/main.dart';
 import 'package:cir/models/incident.dart';
+import 'package:cir/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:cir/widgets/floating_nav.dart';
 import 'package:cir/widgets/incident_card.dart';
 import 'package:cir/widgets/notifications_sheet.dart';
@@ -282,7 +284,7 @@ void main() {
     await tester.tap(find.byTooltip('Account'));
     await tester.pumpAndSettle();
     expect(find.text('Report details'), findsNothing);
-    expect(find.text('Edit'), findsOneWidget);
+    expect(find.byTooltip('Edit profile'), findsOneWidget);
   });
 
   testWidgets('staff get the facilities tab and no new report button', (
@@ -444,20 +446,63 @@ void main() {
       );
     });
 
-    testWidgets('the password meter and checklist follow what is typed', (
+    testWidgets('each password bar has its own short caption and fills alone', (
       tester,
     ) async {
       await openSignUp(tester);
       final password = find.byType(TextFormField).at(2);
+      for (final caption in ['8+ chars', 'Capital', 'Lowercase', 'Number']) {
+        expect(find.text(caption), findsNothing);
+      }
       await tester.enterText(password, 'abc');
       await tester.pumpAndSettle();
-      expect(find.text('Weak'), findsOneWidget);
-      expect(find.text('An uppercase letter'), findsOneWidget);
+      for (final caption in ['8+ chars', 'Capital', 'Lowercase', 'Number']) {
+        expect(find.text(caption), findsOneWidget, reason: caption);
+      }
+      TextStyle styleOf(String caption) => tester
+          .widget<AnimatedDefaultTextStyle>(
+            find
+                .ancestor(
+                  of: find.text(caption),
+                  matching: find.byType(AnimatedDefaultTextStyle),
+                )
+                .first,
+          )
+          .style;
+      // Only the lowercase rule is met so far.
+      expect(styleOf('Lowercase').fontWeight, FontWeight.w700);
+      expect(styleOf('Capital').fontWeight, FontWeight.w500);
 
       await tester.enterText(password, 'Abcdefg1');
       await tester.pumpAndSettle();
-      expect(find.text('Strong'), findsOneWidget);
+      for (final caption in ['8+ chars', 'Capital', 'Lowercase', 'Number']) {
+        expect(styleOf(caption).fontWeight, FontWeight.w700, reason: caption);
+      }
     });
+
+    testWidgets(
+      'a field explains its problem when you leave it, not while typing',
+      (tester) async {
+        await openSignUp(tester);
+        final fields = find.byType(TextFormField);
+        await tester.enterText(fields.at(1), 'x@gmail.com');
+        await tester.pumpAndSettle();
+        // Still typing in the email: nothing is said yet.
+        expect(
+          find.text('Use your @alueducation.com or @alustudent.com email'),
+          findsNothing,
+        );
+        // Moving on to the next field brings the message up under the email.
+        await tester.enterText(fields.at(2), 'abc');
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Use your @alueducation.com or @alustudent.com email'),
+          findsOneWidget,
+        );
+        // Passwords are the exception: they are checked as you type.
+        expect(find.text('Use at least 8 characters'), findsOneWidget);
+      },
+    );
 
     testWidgets('forgot password checks the email before sending', (
       tester,
@@ -607,6 +652,32 @@ void main() {
       );
     });
 
+    testWidgets('the notifications panel closes when the person signs out', (
+      tester,
+    ) async {
+      await seed('Leaking tap in the gym', uid: 'student1');
+      final id = (await db.collection('incidents').get()).docs.single.id;
+      await incidents.updateStatus(
+        id: id,
+        status: 'In Progress',
+        note: 'On the way',
+        changedBy: 'Jordan Staff',
+      );
+      await tester.pumpWidget(await app(user: student()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Alerts'));
+      await tester.pumpAndSettle();
+      expect(find.byType(NotificationsPanel), findsOneWidget);
+
+      await tester
+          .element(find.byType(NotificationsPanel))
+          .read<AuthProvider>()
+          .signOut();
+      await tester.pumpAndSettle();
+      expect(find.byType(NotificationsPanel), findsNothing);
+      expect(find.text('Welcome back'), findsOneWidget);
+    });
+
     testWidgets('the notifications panel greys the whole screen and closes', (
       tester,
     ) async {
@@ -724,42 +795,38 @@ void main() {
       expect(find.text('Issue: Water'), findsOneWidget);
     });
 
-    testWidgets('the account card shows who you are and edits in place', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(900, 2400);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(await app(user: student()));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Account'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'the profile card has one edit icon that opens the edit sheet',
+      (tester) async {
+        tester.view.physicalSize = const Size(900, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(await app(user: student()));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Account'));
+        await tester.pumpAndSettle();
 
-      // The top card carries the name, email, campus and role once.
-      expect(find.text('Aline Student'), findsOneWidget);
-      expect(find.text('aline@alustudent.com'), findsOneWidget);
-      expect(find.text('Kigali Campus'), findsOneWidget);
-      expect(find.text('Student'), findsOneWidget);
-      expect(find.text('Profile details'), findsNothing);
-      expect(find.text('Save settings'), findsNothing);
+        // The card carries the name, email, campus and role once; there is no details section.
+        expect(find.text('Aline Student'), findsOneWidget);
+        expect(find.text('aline@alustudent.com'), findsOneWidget);
+        expect(find.text('Kigali Campus'), findsOneWidget);
+        expect(find.text('Student'), findsOneWidget);
+        expect(find.text('Profile details'), findsNothing);
+        expect(find.byTooltip('Edit profile'), findsOneWidget);
 
-      // Editing opens the fields inside the same card and Save stays off until a change.
-      await tester.tap(find.byTooltip('Edit name'));
-      await tester.pumpAndSettle();
-      expect(find.text('Save settings'), findsOneWidget);
-      FilledButton save() =>
-          tester.widget<FilledButton>(find.byType(FilledButton).last);
-      expect(save().onPressed, isNull);
+        await tester.tap(find.byTooltip('Edit profile'));
+        await tester.pumpAndSettle();
+        expect(find.text('Edit profile'), findsOneWidget);
+        FilledButton save() =>
+            tester.widget<FilledButton>(find.byType(FilledButton).last);
+        expect(find.text('Save settings'), findsOneWidget);
+        expect(save().onPressed, isNull);
 
-      await tester.enterText(find.byType(TextFormField).first, 'Aline N');
-      await tester.pumpAndSettle();
-      expect(save().onPressed, isNotNull);
-
-      await tester.tap(find.byTooltip('Cancel editing'));
-      await tester.pumpAndSettle();
-      expect(find.text('Save settings'), findsNothing);
-      expect(find.text('Aline Student'), findsOneWidget);
-    });
+        await tester.enterText(find.byType(TextFormField).first, 'Aline N');
+        await tester.pumpAndSettle();
+        expect(save().onPressed, isNotNull);
+      },
+    );
 
     testWidgets('the admin can pick the view and everyone can pick a theme', (
       tester,
