@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
+// Icon at the top left, the number at the top right, and the name under the icon.
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -27,74 +28,50 @@ class StatTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final iconBubble = Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(color: strong, shape: BoxShape.circle),
-              child: Icon(icon, color: Colors.white, size: 20),
-            );
-            final figures = Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TweenAnimationBuilder<int>(
-                  tween: IntTween(begin: 0, end: value),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (_, shown, _) => Text(
-                    '$shown',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.05,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: strong,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 21),
+                  ),
+                  const Spacer(),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: value),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, shown, _) => Text(
+                      '$shown',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            );
-            // Short cells lay the icon beside the numbers instead of above them.
-            final compact = box.maxHeight < 112;
-            return Padding(
-              padding: EdgeInsets.all(compact ? 12 : 16),
-              child: compact
-                  ? Row(
-                      children: [
-                        iconBubble,
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FittedBox(
-                            alignment: Alignment.centerLeft,
-                            fit: BoxFit.scaleDown,
-                            child: figures,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        iconBubble,
-                        Flexible(
-                          child: FittedBox(
-                            alignment: Alignment.centerLeft,
-                            fit: BoxFit.scaleDown,
-                            child: figures,
-                          ),
-                        ),
-                      ],
-                    ),
-            );
-          },
+              ),
+            ],
+          ),
         ),
       ),
     );

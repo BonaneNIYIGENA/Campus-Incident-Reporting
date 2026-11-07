@@ -12,7 +12,6 @@ import '../models/campus_facility.dart';
 import '../utils/validators.dart';
 import '../theme/app_icons.dart';
 import '../utils/campus_locations.dart';
-import '../widgets/alerts_bell.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/form_sheet.dart';
 import '../widgets/select_field.dart';
@@ -134,16 +133,6 @@ IconData _statusIcon(String status) => switch (status) {
   'Resolved' => Ph.checkCircle,
   'Rejected' => Ph.xCircle,
   _ => Ph.tray,
-};
-
-IconData _categoryIcon(String category) => switch (category) {
-  'Water' => Ph.drop,
-  'Electricity' => Ph.lightning,
-  'Facilities' => Ph.buildings,
-  'Furniture' => Ph.armchair,
-  'Sanitation' => Ph.trash,
-  'Safety' => Ph.shieldWarning,
-  _ => Ph.dotsThree,
 };
 
 class CreateIncidentScreen extends StatefulWidget {
@@ -281,8 +270,7 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
                   value: _category,
                   validator: (value) => Validators.required(value, 'Category'),
                   options: [
-                    for (final c in incidentCategories)
-                      SelectOption(c, c, icon: _categoryIcon(c)),
+                    for (final c in incidentCategories) SelectOption(c, c),
                   ],
                   onChanged: (value) => setState(() => _category = value),
                 ),
@@ -385,13 +373,7 @@ class IncidentListScreen extends StatelessWidget {
     final currentUid = context.watch<AuthProvider>().user?.uid;
     final items = provider.visibleItems;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(staffView ? 'All reports' : 'Campus reports'),
-        actions: [
-          AlertsBell(staffView: staffView),
-          const SizedBox(width: 12),
-        ],
-      ),
+      appBar: AppBar(title: Text(staffView ? 'All reports' : 'Campus reports')),
       body: Column(
         children: [
           const Padding(
@@ -522,23 +504,14 @@ class IncidentDetailScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          left: 12,
-                          top: 12,
-                          child: StatusBadge(status: item.status),
-                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
-              ] else ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: StatusBadge(status: item.status),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
               ],
+              StatusRoadmap(incident: item),
+              const SizedBox(height: 20),
               Text(
                 item.title,
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -551,10 +524,7 @@ class IncidentDetailScreen extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _MetaChip(
-                    icon: _categoryIcon(item.category),
-                    label: item.category,
-                  ),
+                  _MetaChip(label: 'Issue: ${item.category}'),
                   _MetaChip(icon: Ph.mapPin, label: item.location),
                   _MetaChip(icon: Ph.clock, label: stamp(item.createdAt)),
                 ],
@@ -620,24 +590,6 @@ class IncidentDetailScreen extends StatelessWidget {
                       onTap: () => provider.toggleUpvote(item, uid ?? ''),
                     ),
                 ],
-              ),
-              const SizedBox(height: 28),
-              Text(
-                'Progress',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-                decoration: BoxDecoration(
-                  color: theme.cardTheme.color ?? colors.surface,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: colors.outlineVariant),
-                ),
-                child: StatusRoadmap(incident: item),
               ),
               if (staffView) ...[
                 const SizedBox(height: 22),
@@ -782,8 +734,8 @@ class _StatusFormState extends State<_StatusForm> {
 }
 
 class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.label});
-  final IconData icon;
+  const _MetaChip({this.icon, required this.label});
+  final IconData? icon;
   final String label;
 
   @override
@@ -798,8 +750,10 @@ class _MetaChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: colors.primary),
-          const SizedBox(width: 6),
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: colors.primary),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: Text(
               label,

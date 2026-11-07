@@ -1,51 +1,48 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_icons.dart';
-
 import '../models/incident.dart';
 import '../services/image_upload_service.dart';
+import '../theme/app_icons.dart';
+import '../theme/status_style.dart';
 
+// A status as a small pill: its own icon and colour, and its name.
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.status});
+  const StatusBadge({super.key, required this.status, this.compact = false});
   final String status;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final Color foreground;
-    final Color background;
-    switch (status) {
-      case 'Resolved':
-        foreground = const Color(0xFF28664A);
-        background = const Color(0xFFE4F2EA);
-      case 'Rejected':
-        foreground = colors.error;
-        background = colors.errorContainer;
-      case 'In Progress':
-        foreground = const Color(0xFF845916);
-        background = const Color(0xFFFAEFD7);
-      default:
-        foreground = colors.onSurfaceVariant;
-        background = colors.surfaceContainerHighest;
-    }
+    final style = statusStyle(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 9 : 12,
+        vertical: compact ? 5 : 7,
+      ),
       decoration: BoxDecoration(
-        color: background,
+        color: style.color.withValues(alpha: .14),
         borderRadius: BorderRadius.circular(30),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(style.icon, size: compact ? 14 : 16, color: style.color),
+          const SizedBox(width: 6),
+          Text(
+            style.label,
+            style: TextStyle(
+              color: style.color,
+              fontWeight: FontWeight.w700,
+              fontSize: compact ? 12 : 13,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// The report card: the photo, what it is and where, its progress, and the day it was sent.
 class IncidentCard extends StatelessWidget {
   const IncidentCard({
     super.key,
@@ -62,135 +59,190 @@ class IncidentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      width: 76,
-                      height: 76,
-                      child: incident.imagePath == null
-                          ? _imagePlaceholder(theme)
-                          : Image.network(
-                              cloudinaryThumb(incident.imagePath!),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  _imagePlaceholder(theme),
-                            ),
+              _Thumb(incident: incident),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      incident.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 4),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Issue: ',
+                            style: TextStyle(color: colors.onSurfaceVariant),
+                          ),
+                          TextSpan(
+                            text: incident.category,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                incident.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                        Icon(Ph.mapPin, size: 15, color: colors.primary),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            incident.place,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colors.onSurfaceVariant,
                             ),
-                            const SizedBox(width: 6),
-                            StatusBadge(status: incident.status),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${incident.category} · ${incident.location}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                incident.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(
-                    Ph.clock,
-                    size: 15,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _date(incident.createdAt),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (staffView) ...[
-                    const SizedBox(width: 14),
-                    Icon(
-                      Ph.user,
-                      size: 15,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        incident.isAnonymous
-                            ? 'Anonymous reporter'
-                            : incident.reporterName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                    if (staffView) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            Ph.user,
+                            size: 15,
+                            color: colors.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              incident.isAnonymous
+                                  ? 'Anonymous reporter'
+                                  : incident.reporterName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ] else
-                    const Spacer(),
-                  const SizedBox(width: 4),
-                  const Icon(Ph.caretRightBold, size: 16),
-                ],
+                    ],
+                    const SizedBox(height: 9),
+                    StatusBadge(status: incident.status, compact: true),
+                  ],
+                ),
               ),
+              const SizedBox(width: 10),
+              _DateTile(date: incident.createdAt),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _imagePlaceholder(ThemeData theme) => ColoredBox(
-    color: theme.colorScheme.surfaceContainerHighest,
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Ph.image, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(height: 2),
-        Text('No image', style: theme.textTheme.labelSmall),
-      ],
-    ),
-  );
+class _Thumb extends StatelessWidget {
+  const _Thumb({required this.incident});
+  final Incident incident;
 
-  String _date(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final url = incident.imagePath;
+    final placeholder = ColoredBox(
+      color: colors.surfaceContainerHighest,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Ph.image, size: 26, color: colors.onSurfaceVariant),
+          const SizedBox(height: 4),
+          Text(
+            'No image',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+    return SizedBox(
+      width: 88,
+      height: 88,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: url == null
+            ? placeholder
+            : Image.network(
+                cloudinaryThumb(url),
+                fit: BoxFit.cover,
+                // The placeholder shows while the photo loads, so there is never a blank square.
+                loadingBuilder: (_, child, progress) =>
+                    progress == null ? child : placeholder,
+                errorBuilder: (_, _, _) => placeholder,
+              ),
+      ),
+    );
+  }
+}
+
+// The day and month it was reported, as a small calendar tile.
+class _DateTile extends StatelessWidget {
+  const _DateTile({required this.date});
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final local = date.toLocal();
+    return Container(
+      width: 52,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${local.day}',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.05,
+            ),
+          ),
+          Text(
+            monthShort(local.month),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

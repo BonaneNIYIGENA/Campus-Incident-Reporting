@@ -1,8 +1,10 @@
 import 'package:cir/main.dart';
 import 'package:cir/models/incident.dart';
 import 'package:cir/widgets/floating_nav.dart';
+import 'package:cir/widgets/incident_card.dart';
 import 'package:cir/widgets/notifications_sheet.dart';
 import 'package:cir/widgets/reports_filter.dart';
+import 'package:cir/widgets/status_roadmap.dart';
 import 'package:cir/widgets/splash_screen.dart';
 import 'package:cir/services/auth_service.dart';
 import 'package:cir/services/incident_service.dart';
@@ -223,7 +225,7 @@ void main() {
     expect(doc['status'], 'Resolved');
     expect(doc['history'], hasLength(2));
     expect(doc['history'][1]['changedBy'], 'Jordan Staff');
-    expect(find.text('Progress'), findsOneWidget);
+    expect(find.byType(StatusRoadmap), findsOneWidget);
   });
 
   testWidgets('students never see the staff dashboard', (tester) async {
@@ -250,7 +252,7 @@ void main() {
     await tester.tap(find.byTooltip('Alerts'));
     await tester.pumpAndSettle();
     expect(find.byType(NotificationsPanel), findsOneWidget);
-    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
     expect(
       find.text('Broken tap in the gym is now In Progress'),
       findsOneWidget,
@@ -280,7 +282,7 @@ void main() {
     await tester.tap(find.byTooltip('Account'));
     await tester.pumpAndSettle();
     expect(find.text('Report details'), findsNothing);
-    expect(find.text('Account and preferences'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
   });
 
   testWidgets('staff get the facilities tab and no new report button', (
@@ -538,19 +540,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Leaking tap in the gym'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Progress'),
-        300,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pumpAndSettle();
 
-      expect(find.text('Reported by Someone'), findsWidgets);
-      expect(find.text('Taken on by Jordan Staff'), findsOneWidget);
-      expect(find.text('Plumber booked for Monday'), findsOneWidget);
-      expect(find.text('Now'), findsOneWidget);
-      expect(find.text('Not reached yet'), findsOneWidget);
-      expect(find.text('Resolved'), findsWidgets);
+      expect(find.byType(StatusRoadmap), findsOneWidget);
+      expect(find.text('by Someone'), findsOneWidget);
+      expect(find.text('by Jordan Staff'), findsOneWidget);
+      expect(find.textContaining('Plumber booked for Monday'), findsOneWidget);
+      expect(find.text('Not yet'), findsOneWidget);
+      expect(find.text('Resolved'), findsOneWidget);
     });
 
     testWidgets('a resolved report shows who resolved it', (tester) async {
@@ -568,15 +564,76 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Broken lamp in hallway'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Progress'),
-        300,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Resolved by Jordan Staff'), findsOneWidget);
+      expect(find.text('by Jordan Staff'), findsOneWidget);
       expect(find.text('Skipped'), findsOneWidget);
-      expect(find.text('Not reached yet'), findsNothing);
+      expect(find.text('Not yet'), findsNothing);
+    });
+
+    testWidgets('report cards show place, progress and the day, not the text', (
+      tester,
+    ) async {
+      await incidents.create(
+        title: 'Leaking tap in the gym',
+        description: 'A very long description that should not be on the card',
+        category: 'Water',
+        building: 'Kigali Campus · Library · Restrooms',
+        anonymous: false,
+        reporterId: 'other',
+        reporterName: 'Someone',
+      );
+      await tester.pumpWidget(await app(user: student()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Records'));
+      await tester.pumpAndSettle();
+
+      final card = find.byType(IncidentCard);
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.text('Library · Restrooms')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('Submitted')),
+        findsOneWidget,
+      );
+      final today = DateTime.now();
+      expect(
+        find.descendant(of: card, matching: find.text('${today.day}')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.textContaining('very long')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the notifications panel greys the whole screen and closes', (
+      tester,
+    ) async {
+      await seed('Leaking tap in the gym', uid: 'student1');
+      final id = (await db.collection('incidents').get()).docs.single.id;
+      await incidents.updateStatus(
+        id: id,
+        status: 'In Progress',
+        note: 'On the way',
+        changedBy: 'Jordan Staff',
+      );
+      await tester.pumpWidget(await app(user: student()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Alerts'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.byTooltip('Mark all as read'), findsOneWidget);
+      // The bar is dimmed by the same barrier as everything else, not covered by it.
+      final barrier = find.byType(ModalBarrier).last;
+      final bar = tester.getRect(find.byType(FloatingNavBar));
+      final screen = tester.getRect(barrier);
+      expect(screen.contains(bar.center), isTrue);
+
+      await tester.tapAt(const Offset(400, 560));
+      await tester.pumpAndSettle();
+      expect(find.byType(NotificationsPanel), findsNothing);
     });
 
     testWidgets('staff add a facility in the sheet, with areas as chips', (
@@ -631,9 +688,113 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Alerts'));
       await tester.pumpAndSettle();
-      expect(find.text('Needs attention'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('2 new'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('account and cards', () {
+    testWidgets('the card names the issue in words, with no issue icon', (
+      tester,
+    ) async {
+      await seed('Leaking tap in the gym');
+      await tester.pumpWidget(await app(user: student()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Records'));
+      await tester.pumpAndSettle();
+      final card = find.byType(IncidentCard);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text('Issue: Water', findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      // A report without a photo keeps its placeholder.
+      expect(
+        find.descendant(of: card, matching: find.text('No image')),
+        findsOneWidget,
+      );
+      // The Records screen has no notification bell.
+      expect(find.byTooltip('Alerts'), findsNothing);
+
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('Issue: Water'), findsOneWidget);
+    });
+
+    testWidgets('the account card shows who you are and edits in place', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(await app(user: student()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Account'));
+      await tester.pumpAndSettle();
+
+      // The top card carries the name, email, campus and role once.
+      expect(find.text('Aline Student'), findsOneWidget);
+      expect(find.text('aline@alustudent.com'), findsOneWidget);
+      expect(find.text('Kigali Campus'), findsOneWidget);
+      expect(find.text('Student'), findsOneWidget);
+      expect(find.text('Profile details'), findsNothing);
+      expect(find.text('Save settings'), findsNothing);
+
+      // Editing opens the fields inside the same card and Save stays off until a change.
+      await tester.tap(find.byTooltip('Edit name'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save settings'), findsOneWidget);
+      FilledButton save() =>
+          tester.widget<FilledButton>(find.byType(FilledButton).last);
+      expect(save().onPressed, isNull);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Aline N');
+      await tester.pumpAndSettle();
+      expect(save().onPressed, isNotNull);
+
+      await tester.tap(find.byTooltip('Cancel editing'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save settings'), findsNothing);
+      expect(find.text('Aline Student'), findsOneWidget);
+    });
+
+    testWidgets('the admin can pick the view and everyone can pick a theme', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final admin = MockUser(
+        uid: 'admin1',
+        email: 'b.niyigena@alustudent.com',
+        displayName: 'Bonane Niyigena',
+        isEmailVerified: true,
+      );
+      await tester.pumpWidget(await app(user: admin));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Account'));
+      await tester.pumpAndSettle();
+      expect(find.text('View the app as'), findsOneWidget);
+      expect(find.text('Student'), findsNWidgets(2));
+
+      await tester.tap(find.text('Dark'));
+      await tester.pumpAndSettle();
+      expect(
+        Theme.of(tester.element(find.text('Appearance'))).brightness,
+        Brightness.dark,
+      );
+
+      await tester.tap(find.text('Staff'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Facilities'), findsOneWidget);
+      await tester.tap(find.byTooltip('Account'));
+      await tester.pumpAndSettle();
+      // The role label follows the view the admin is in.
+      expect(find.text('Staff'), findsNWidgets(2));
+      expect(find.text('Student'), findsOneWidget);
     });
   });
 }

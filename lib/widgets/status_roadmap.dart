@@ -2,46 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../models/incident.dart';
 import '../theme/app_icons.dart';
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+import '../theme/status_style.dart';
 
 String stamp(DateTime at) {
   final local = at.toLocal();
   final minute = local.minute.toString().padLeft(2, '0');
-  return '${local.day} ${_months[local.month - 1]} ${local.year} · ${local.hour}:$minute';
+  return '${local.day} ${monthShort(local.month)} ${local.year} · ${local.hour}:$minute';
 }
 
 enum _StepState { done, current, skipped, upcoming }
 
-// Every status laid out in order. Steps not reached yet stay grey; finished ones show who did them.
+// Every status in a row, small enough to sit under the photo. Steps not reached stay grey;
+// reached ones take their status colour and say who did them.
 class StatusRoadmap extends StatelessWidget {
   const StatusRoadmap({super.key, required this.incident});
   final Incident incident;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final rejected = incident.status == 'Rejected';
     final steps = [
       'Submitted',
       'In Progress',
-      rejected ? 'Rejected' : 'Resolved',
+      if (rejected) 'Rejected' else 'Resolved',
     ];
-    final currentIndex = steps
-        .indexOf(incident.status)
-        .clamp(0, steps.length - 1);
+    final current = steps.indexOf(incident.status).clamp(0, steps.length - 1);
 
     StatusEvent? eventFor(String status) {
       for (final event in incident.history.reversed) {
@@ -50,33 +37,93 @@ class StatusRoadmap extends StatelessWidget {
       return null;
     }
 
-    final children = <Widget>[];
-    for (var i = 0; i < steps.length; i++) {
-      final event = eventFor(steps[i]);
-      final _StepState state;
-      if (i > currentIndex) {
-        state = _StepState.upcoming;
-      } else if (i == currentIndex) {
-        state = _StepState.current;
-      } else {
-        state = event != null ? _StepState.done : _StepState.skipped;
-      }
-      children.add(
-        _Step(
-          status: steps[i],
-          state: state,
-          event: event,
-          reporter: incident.isAnonymous
-              ? 'Anonymous'
-              : (incident.reporterName.isEmpty
-                    ? 'a student'
-                    : incident.reporterName),
-          last: i == steps.length - 1,
-          lineReached: i < currentIndex,
-        ),
-      );
+    _StepState stateOf(int i) {
+      if (i > current) return _StepState.upcoming;
+      if (i == current) return _StepState.current;
+      return eventFor(steps[i]) != null ? _StepState.done : _StepState.skipped;
     }
-    return Column(children: children);
+
+    final latest = incident.history.isEmpty ? null : incident.history.last;
+    final showNote =
+        latest != null &&
+        latest.note.isNotEmpty &&
+        latest.note != 'Report submitted';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(8, 16, 8, 14),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? colors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < steps.length; i++)
+                Expanded(
+                  child: _Step(
+                    status: steps[i],
+                    state: stateOf(i),
+                    event: eventFor(steps[i]),
+                    reporter: incident.isAnonymous
+                        ? 'Anonymous'
+                        : (incident.reporterName.isEmpty
+                              ? 'a student'
+                              : incident.reporterName),
+                    leftReached: i > 0 && i <= current,
+                    rightReached: i < current,
+                    first: i == 0,
+                    last: i == steps.length - 1,
+                    nextColor: i < steps.length - 1
+                        ? statusStyle(steps[i + 1]).color
+                        : null,
+                    ownColor: statusStyle(steps[i]).color,
+                  ),
+                ),
+            ],
+          ),
+          if (showNote) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Ph.pencilSimple, size: 16, color: colors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          if (latest.changedBy.isNotEmpty)
+                            TextSpan(
+                              text: '${latest.changedBy}: ',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          TextSpan(text: latest.note),
+                        ],
+                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -86,238 +133,144 @@ class _Step extends StatelessWidget {
     required this.state,
     required this.event,
     required this.reporter,
+    required this.leftReached,
+    required this.rightReached,
+    required this.first,
     required this.last,
-    required this.lineReached,
+    required this.nextColor,
+    required this.ownColor,
   });
   final String status, reporter;
   final _StepState state;
   final StatusEvent? event;
-  final bool last, lineReached;
-
-  bool get _terminal => status == 'Resolved' || status == 'Rejected';
-  // A finished step is one that was reached and is not still being worked on.
-  bool get _finished =>
-      state == _StepState.done || (state == _StepState.current && _terminal);
+  final bool leftReached, rightReached, first, last;
+  final Color? nextColor;
+  final Color ownColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final rejected = status == 'Rejected';
-    final accent = rejected ? const Color(0xFFD7403A) : colors.primary;
-    final grey = colors.outlineVariant;
+    final style = statusStyle(status);
     final upcoming = state == _StepState.upcoming;
-    final label = status == 'In Progress' ? 'In progress' : status;
+    final skipped = state == _StepState.skipped;
+    final grey = colors.outlineVariant;
 
-    final who = event == null || event!.changedBy.isEmpty
+    final name = event == null || event!.changedBy.isEmpty
         ? (status == 'Submitted' ? reporter : 'staff')
         : event!.changedBy;
-    final line = switch (status) {
-      'Submitted' => 'Reported by $who',
-      'In Progress' => 'Taken on by $who',
-      'Resolved' => 'Resolved by $who',
-      _ => 'Rejected by $who',
-    };
-    final note = event?.note ?? '';
-    final showNote = note.isNotEmpty && note != 'Report submitted';
 
-    return Stack(
-      clipBehavior: Clip.none,
+    return Column(
       children: [
-        if (!last)
-          Positioned(
-            left: 18.5,
-            top: 36,
-            bottom: -4,
-            width: 3,
-            child: _Rail(reached: lineReached, accent: accent, grey: grey),
-          ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 40,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: _Node(
-                  state: state,
-                  finished: _finished,
-                  accent: accent,
-                  grey: grey,
-                  rejected: rejected,
-                ),
+        SizedBox(
+          height: 34,
+          child: Row(
+            children: [
+              Expanded(
+                child: first
+                    ? const SizedBox.shrink()
+                    : _Line(reached: leftReached, color: ownColor, grey: grey),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: last ? 0 : 24, top: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            label,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: upcoming
-                                  ? colors.outline
-                                  : (_finished && rejected ? accent : null),
-                            ),
-                          ),
-                        ),
-                        if (state == _StepState.current && !_terminal) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: .14),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Now',
-                              style: TextStyle(
-                                color: accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    if (upcoming)
-                      Text(
-                        'Not reached yet',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.outline,
-                        ),
-                      )
-                    else if (state == _StepState.skipped)
-                      Text(
-                        'Skipped',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.outline,
-                        ),
-                      )
-                    else ...[
-                      Text(
-                        line,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+              _Node(state: state, style: style, grey: grey),
+              Expanded(
+                child: last
+                    ? const SizedBox.shrink()
+                    : _Line(
+                        reached: rightReached,
+                        color: nextColor ?? ownColor,
+                        grey: grey,
                       ),
-                      if (event != null)
-                        Text(
-                          stamp(event!.at),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                      if (showNote) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            note,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ],
-                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          style.label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: upcoming || skipped ? colors.outline : style.color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        if (upcoming)
+          Text(
+            'Not yet',
+            style: theme.textTheme.bodySmall?.copyWith(color: colors.outline),
+          )
+        else if (skipped)
+          Text(
+            'Skipped',
+            style: theme.textTheme.bodySmall?.copyWith(color: colors.outline),
+          )
+        else ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'by $name',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ],
-        ),
+          ),
+          if (event != null)
+            Text(
+              '${event!.at.toLocal().day} ${monthShort(event!.at.toLocal().month)} · ${event!.at.toLocal().hour}:${event!.at.toLocal().minute.toString().padLeft(2, '0')}',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+        ],
       ],
     );
   }
 }
 
 class _Node extends StatelessWidget {
-  const _Node({
-    required this.state,
-    required this.finished,
-    required this.accent,
-    required this.grey,
-    required this.rejected,
-  });
+  const _Node({required this.state, required this.style, required this.grey});
   final _StepState state;
-  final bool finished, rejected;
-  final Color accent, grey;
+  final StatusStyle style;
+  final Color grey;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    const size = 32.0;
-    if (finished) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-        child: Icon(
-          rejected ? Ph.xBold : Ph.checkBold,
-          color: Colors.white,
-          size: 17,
-        ),
-      );
-    }
+    const size = 30.0;
     switch (state) {
       case _StepState.done:
+      case _StepState.current:
+        final now = state == _StepState.current;
         return Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          child: const Icon(Ph.checkBold, color: Colors.white, size: 17),
-        );
-      case _StepState.current:
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: accent, width: 3),
-                  color: accent.withValues(alpha: .12),
-                ),
-              ),
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: accent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
+          decoration: BoxDecoration(
+            color: style.color,
+            shape: BoxShape.circle,
+            boxShadow: now
+                ? [
+                    BoxShadow(
+                      color: style.color.withValues(alpha: .35),
+                      blurRadius: 0,
+                      spreadRadius: 4,
+                    ),
+                  ]
+                : null,
           ),
+          child: Icon(style.icon, color: Colors.white, size: 17),
         );
       case _StepState.skipped:
         return Container(
           width: size,
           height: size,
           decoration: BoxDecoration(color: grey, shape: BoxShape.circle),
-          child: Icon(Ph.checkBold, color: colors.surface, size: 16),
+          child: Icon(Ph.checkBold, color: colors.surface, size: 15),
         );
       case _StepState.upcoming:
         return Container(
@@ -328,49 +281,39 @@ class _Node extends StatelessWidget {
             border: Border.all(color: grey, width: 2),
             color: colors.surfaceContainer,
           ),
-          child: Center(
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: grey, shape: BoxShape.circle),
-            ),
-          ),
+          child: Icon(style.icon, color: grey, size: 15),
         );
     }
   }
 }
 
-// The line between two steps fills in green once the next step has been reached.
-class _Rail extends StatelessWidget {
-  const _Rail({
-    required this.reached,
-    required this.accent,
-    required this.grey,
-  });
+// The line between two steps fills in with the colour of the step it leads to.
+class _Line extends StatelessWidget {
+  const _Line({required this.reached, required this.color, required this.grey});
   final bool reached;
-  final Color accent, grey;
+  final Color color, grey;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 3),
     child: Container(
-      width: 3,
+      height: 3,
       decoration: BoxDecoration(
         color: grey,
         borderRadius: BorderRadius.circular(2),
       ),
       child: Align(
-        alignment: Alignment.topCenter,
+        alignment: Alignment.centerLeft,
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: reached ? 1 : 0),
           duration: const Duration(milliseconds: 700),
           curve: Curves.easeOutCubic,
           builder: (context, t, _) => FractionallySizedBox(
-            heightFactor: t,
+            widthFactor: t,
             child: Container(
-              width: 3,
+              height: 3,
               decoration: BoxDecoration(
-                color: accent,
+                color: color,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

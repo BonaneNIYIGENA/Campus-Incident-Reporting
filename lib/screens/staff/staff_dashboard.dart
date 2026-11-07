@@ -78,7 +78,7 @@ class StaffDashboard extends StatelessWidget {
                         ),
                         AlertsBell(staffView: true),
                         const SizedBox(width: 8),
-                        IconButton.filledTonal(
+                        IconButton(
                           tooltip: 'Toggle theme',
                           onPressed: () => context
                               .read<ThemeProvider>()
@@ -88,13 +88,15 @@ class StaffDashboard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 22),
-                    GridView.count(
-                      crossAxisCount: wide ? 4 : 2,
+                    GridView(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: wide ? 4 : 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        mainAxisExtent: 108,
+                      ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: wide ? 1.7 : 1.35,
                       children: [
                         StatTile(
                           label: 'New',

@@ -25,10 +25,10 @@ class AlertsBell extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        IconButton.filledTonal(
+        IconButton(
           tooltip: 'Alerts',
           onPressed: ShellScope.maybeOf(context)?.openAlerts,
-          icon: const Icon(Ph.bellSimple, size: 20),
+          icon: const Icon(Ph.bellSimple, size: 26),
         ),
         if (unread > 0)
           Positioned(

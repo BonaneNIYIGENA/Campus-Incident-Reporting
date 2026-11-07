@@ -78,7 +78,7 @@ class StudentDashboard extends StatelessWidget {
                         ),
                         AlertsBell(staffView: false),
                         const SizedBox(width: 8),
-                        IconButton.filledTonal(
+                        IconButton(
                           tooltip: 'Toggle theme',
                           onPressed: () => context
                               .read<ThemeProvider>()
@@ -95,11 +95,14 @@ class StudentDashboard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: wide ? 2.4 : 1.35,
+                    GridView(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: 108,
+                          ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [

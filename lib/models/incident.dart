@@ -66,6 +66,13 @@ class Incident {
   // Reports saved before the campus fix start with an empty campus: " · Library · Restrooms".
   String get location => building.replaceFirst(RegExp(r'^[\s·]+'), '');
 
+  // Where it happened without the campus: "Library · Restrooms".
+  String get place {
+    final parts = location.split(' · ');
+    if (parts.length > 2 && parts.first.endsWith('Campus')) parts.removeAt(0);
+    return parts.join(' · ');
+  }
+
   factory Incident.fromMap(String id, Map<String, dynamic> map) => Incident(
     id: id,
     title: map['title'] as String? ?? '',

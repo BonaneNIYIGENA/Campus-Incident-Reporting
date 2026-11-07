@@ -7,7 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 import '../screens/incident_screens.dart';
 import '../theme/app_icons.dart';
-import '../theme/app_theme.dart';
+import '../theme/status_style.dart';
 
 class AlertItem {
   const AlertItem({
@@ -129,14 +129,18 @@ class NotificationsPanel extends StatelessWidget {
     final unread = alerts.where((a) => !store.isRead(a.key)).length;
     final height = MediaQuery.sizeOf(context).height;
 
-    return SafeArea(
-      bottom: false,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: height * .62, maxWidth: 560),
+    // The panel starts under the top bar, where the bell is.
+    final top = MediaQuery.paddingOf(context).top + 66;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, top, 12, 0),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: height * .6, maxWidth: 560),
+          child: Dismissible(
+            key: const ValueKey('notifications-panel'),
+            direction: DismissDirection.up,
+            onDismissed: (_) => Navigator.of(context).pop(),
             child: Material(
               color: theme.colorScheme.surface,
               elevation: 12,
@@ -156,7 +160,7 @@ class NotificationsPanel extends StatelessWidget {
                             children: [
                               Flexible(
                                 child: Text(
-                                  staffView ? 'Needs attention' : 'Updates',
+                                  'Notifications',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleLarge?.copyWith(
@@ -189,11 +193,15 @@ class NotificationsPanel extends StatelessWidget {
                           ),
                         ),
                         if (unread > 0)
-                          IconButton.filledTonal(
-                            tooltip: 'Mark all read',
+                          IconButton(
+                            tooltip: 'Mark all as read',
                             onPressed: () =>
                                 store.markRead(alerts.map((a) => a.key)),
-                            icon: const Icon(Ph.checkBold, size: 18),
+                            icon: Icon(
+                              Ph.checks,
+                              size: 24,
+                              color: theme.colorScheme.primary,
+                            ),
                           ),
                       ],
                     ),
@@ -263,6 +271,19 @@ class NotificationsPanel extends StatelessWidget {
                         },
                       ),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10, top: 2),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -313,9 +334,14 @@ class _AlertTile extends StatelessWidget {
       ),
       child: Material(
         color: read
-            ? theme.colorScheme.surfaceContainerLow
+            ? theme.colorScheme.surface
             : theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: read ? theme.colorScheme.outlineVariant : Colors.transparent,
+          ),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onOpen,
@@ -440,16 +466,6 @@ class _SwipeBackground extends StatelessWidget {
   }
 }
 
-Color _statusColor(String status) => switch (status) {
-  'Resolved' => AppTheme.green,
-  'Rejected' => AppTheme.red,
-  'In Progress' => AppTheme.amber,
-  _ => const Color(0xFF6B7A70),
-};
+Color _statusColor(String status) => statusStyle(status).color;
 
-IconData _statusIcon(String status) => switch (status) {
-  'Resolved' => Ph.checkCircleFill,
-  'Rejected' => Ph.xCircleFill,
-  'In Progress' => Ph.wrenchFill,
-  _ => Ph.paperPlaneTiltFill,
-};
+IconData _statusIcon(String status) => statusStyle(status).icon;
