@@ -7,8 +7,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/user_role.dart';
-import '../staff/staff_dashboard.dart';
-import '../student/student_dashboard.dart';
+import '../../widgets/splash_screen.dart';
+import '../shell/app_shell.dart';
 import 'auth_screens.dart';
 
 class AuthGate extends StatelessWidget {
@@ -17,24 +17,32 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    if (auth.initializing) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
     final user = auth.user;
-    if (user == null) return const LoginScreen();
-    if (!user.emailVerified) return const VerifyEmailScreen();
-
-    return switch (auth.activeRole) {
-      UserRole.staff => StaffDashboard(
-        name: user.displayName,
-        campus: user.campus,
-      ),
-      UserRole.student => StudentDashboard(
-        name: user.displayName,
-        campus: user.campus,
-      ),
-      null => const AccessDeniedScreen(),
-    };
+    final String id;
+    final Widget page;
+    if (auth.initializing) {
+      id = 'splash';
+      page = const SplashScreen();
+    } else if (user == null) {
+      id = 'login';
+      page = const LoginScreen();
+    } else if (!user.emailVerified) {
+      id = 'verify';
+      page = const VerifyEmailScreen();
+    } else {
+      final role = auth.activeRole;
+      id = 'app-${role?.name}';
+      page = role == null
+          ? const AccessDeniedScreen()
+          : AppShell(key: ValueKey(id), role: role);
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 380),
+      switchInCurve: Curves.easeOut,
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      child: KeyedSubtree(key: ValueKey(id), child: page),
+    );
   }
 }
 
@@ -226,7 +234,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               selected: {auth.activeRole ?? UserRole.student},
               onSelectionChanged: (selection) {
                 context.read<AuthProvider>().switchView(selection.first);
-                Navigator.of(context).pop();
               },
             ),
           ],
@@ -253,12 +260,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             ],
             selected: {theme.mode},
             onSelectionChanged: (selection) => theme.setMode(selection.first),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => context.read<AuthProvider>().signOut(),
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Sign out'),
           ),
         ],
       ),

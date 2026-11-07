@@ -10,7 +10,9 @@ import '../providers/incident_provider.dart';
 import '../providers/facility_provider.dart';
 import '../models/campus_facility.dart';
 import '../utils/validators.dart';
+import '../theme/app_icons.dart';
 import '../utils/campus_locations.dart';
+import '../widgets/filter_pill.dart';
 import '../widgets/incident_card.dart';
 
 const incidentCategories = [
@@ -162,59 +164,9 @@ class CreateIncidentScreen extends StatefulWidget {
   State<CreateIncidentScreen> createState() => _CreateIncidentScreenState();
 }
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = context.watch<AuthProvider>().user?.uid;
-    final reports = context
-        .watch<IncidentProvider>()
-        .items
-        .where((item) => item.reporterId == uid && item.history.length > 1)
-        .toList();
-    return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
-      body: reports.isEmpty
-          ? const Center(
-              child: Text(
-                'You’re all caught up. Status updates will appear here.',
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: reports.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final report = reports[index];
-                final event = report.history.last;
-                return Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.notifications_active_outlined),
-                    ),
-                    title: Text('${report.title}: ${event.status}'),
-                    subtitle: Text(
-                      event.note.isEmpty
-                          ? 'Your report status changed.'
-                          : event.note,
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => IncidentDetailScreen(
-                          incident: report,
-                          staffView: false,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
+String _campusName(BuildContext context) {
+  final campus = context.read<AuthProvider>().user?.campus ?? '';
+  return campus.isEmpty ? 'Kigali Campus' : campus;
 }
 
 class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
@@ -263,7 +215,7 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
         description: _description.text,
         category: _category!,
         building:
-            '${context.read<AuthProvider>().user?.campus ?? 'Campus'} · $_facility · $_area',
+            '${_campusName(context)} · $_facility · $_area',
         anonymous: _anonymous,
         photo: _photo,
         reporterId: context.read<AuthProvider>().user?.uid ?? 'demo-student',
@@ -446,57 +398,63 @@ class IncidentListScreen extends StatelessWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: provider.setQuery,
-                  decoration: const InputDecoration(
-                    hintText: 'Search title or location',
-                    prefixIcon: Icon(Icons.search_rounded),
-                  ),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: TextField(
+              onChanged: provider.setQuery,
+              decoration: const InputDecoration(
+                hintText: 'Search title or location',
+                prefixIcon: Icon(Ph.magnifyingGlass),
+              ),
+            ),
+          ),
+          _PillRow(
+            children: [
+              for (final (label, value, icon) in const [
+                ('All', 'All', Ph.listBullets),
+                ('New', 'Submitted', Ph.tray),
+                ('In progress', 'In Progress', Ph.wrench),
+                ('Resolved', 'Resolved', Ph.checkCircle),
+                ('Rejected', 'Rejected', Ph.xCircle),
+              ])
+                FilterPill(
+                  label: label,
+                  icon: icon,
+                  selected: provider.status == value,
+                  onTap: () => provider.setStatus(value),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: provider.category,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                          isDense: true,
-                        ),
-                        items: ['All', ...incidentCategories]
-                            .map(
-                              (v) => DropdownMenuItem(value: v, child: Text(v)),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) provider.setCategory(value);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: provider.status,
-                        decoration: const InputDecoration(
-                          labelText: 'Status',
-                          isDense: true,
-                        ),
-                        items: ['All', ...incidentStatuses]
-                            .map(
-                              (v) => DropdownMenuItem(value: v, child: Text(v)),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) provider.setStatus(value);
-                        },
-                      ),
-                    ),
-                  ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          _PillRow(
+            children: [
+              for (final (value, icon) in const [
+                ('All', Ph.squaresFour),
+                ('Water', Ph.drop),
+                ('Electricity', Ph.lightning),
+                ('Facilities', Ph.buildings),
+                ('Furniture', Ph.armchair),
+                ('Sanitation', Ph.trash),
+                ('Safety', Ph.shieldWarning),
+                ('Other', Ph.dotsThree),
+              ])
+                FilterPill(
+                  label: value == 'All' ? 'All types' : value,
+                  icon: icon,
+                  selected: provider.category == value,
+                  onTap: () => provider.setCategory(value),
                 ),
-              ],
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                items.length == 1 ? '1 report' : '${items.length} reports',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
           Expanded(
@@ -543,6 +501,23 @@ class IncidentListScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PillRow extends StatelessWidget {
+  const _PillRow({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 42,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: children.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, index) => children[index],
+    ),
+  );
 }
 
 class IncidentDetailScreen extends StatelessWidget {

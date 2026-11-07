@@ -23,14 +23,14 @@ void main() {
     final client = MockClient.streaming((request, body) async {
       sent = request;
       final json = jsonEncode({
-        'secure_url': 'https://res.cloudinary.com/dgxaazbuq/image/upload/v1/a.jpg',
+        'secure_url':
+            'https://res.cloudinary.com/dgxaazbuq/image/upload/v1/a.jpg',
       });
       return http.StreamedResponse(Stream.value(utf8.encode(json)), 200);
     });
 
-    final url = await CloudinaryUploader(
-      client: client,
-    ).upload(photo, folder: 'cir/incidents');
+    final url = await CloudinaryUploader(client: client)
+        .upload(photo, folder: 'cir/incidents');
 
     expect(url, startsWith('https://res.cloudinary.com/dgxaazbuq/'));
     expect(sent.url.host, 'api.cloudinary.com');
@@ -77,6 +77,9 @@ void main() {
       ),
       'https://res.cloudinary.com/dgxaazbuq/image/upload/c_fill,w_200,h_200,q_auto,f_auto/v1/cir/a.jpg',
     );
-    expect(cloudinaryThumb('https://example.com/a.jpg'), 'https://example.com/a.jpg');
+    expect(
+      cloudinaryThumb('https://example.com/a.jpg'),
+      'https://example.com/a.jpg',
+    );
   });
 }

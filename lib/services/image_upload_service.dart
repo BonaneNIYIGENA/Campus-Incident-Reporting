@@ -29,7 +29,9 @@ class CloudinaryUploader implements ImageUploader {
   @override
   Future<String> upload(File file, {required String folder}) async {
     if (await file.length() > CloudinaryConfig.maxBytes) {
-      throw const ImageUploadFailure('That photo is too large. Pick one under 5 MB.');
+      throw const ImageUploadFailure(
+        'That photo is too large. Pick one under 5 MB.',
+      );
     }
     final request = http.MultipartRequest('POST', _endpoint)
       ..fields['upload_preset'] = CloudinaryConfig.uploadPreset
@@ -51,7 +53,9 @@ class CloudinaryUploader implements ImageUploader {
     } on ImageUploadFailure {
       rethrow;
     } catch (_) {
-      throw const ImageUploadFailure('The photo could not be uploaded. Check your connection.');
+      throw const ImageUploadFailure(
+        'The photo could not be uploaded. Check your connection.',
+      );
     }
   }
 }

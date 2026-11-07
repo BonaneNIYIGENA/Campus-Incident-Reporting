@@ -1,6 +1,32 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
+enum Tone { mint, sand, blush, lime }
+
 class AppTheme {
+  // Soft tinted backgrounds for stat tiles, each with a stronger colour for its icon and number.
+  static (Color, Color) tone(Brightness brightness, Tone tone) {
+    final dark = brightness == Brightness.dark;
+    return switch (tone) {
+      Tone.mint =>
+        dark
+            ? (const Color(0xFF12301F), const Color(0xFF4CCB85))
+            : (const Color(0xFFE3F4EA), const Color(0xFF1E8E4E)),
+      Tone.sand =>
+        dark
+            ? (const Color(0xFF33280F), const Color(0xFFE6B04E))
+            : (const Color(0xFFFBF0DA), const Color(0xFFB7791F)),
+      Tone.blush =>
+        dark
+            ? (const Color(0xFF361B1A), const Color(0xFFF08A82))
+            : (const Color(0xFFFBE4E1), const Color(0xFFC8423B)),
+      Tone.lime =>
+        dark
+            ? (const Color(0xFF24301A), const Color(0xFF9CD05A))
+            : (const Color(0xFFEAF3D6), const Color(0xFF5C8A1E)),
+    };
+  }
+
   static const green = Color(0xFF1E8E4E);
   static const deepGreen = Color(0xFF14663A);
   static const red = Color(0xFFC8423B);
@@ -79,6 +105,24 @@ class AppTheme {
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: border),
         ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: background,
+        surfaceTintColor: Colors.transparent,
+        modalBarrierColor: Colors.black.withValues(alpha: .35),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: background,

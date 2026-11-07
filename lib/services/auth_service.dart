@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'dart:io';
 
 import '../config/cloudinary_config.dart';
@@ -159,7 +160,11 @@ class AuthService {
       final data = profile.data() ?? const <String, dynamic>{};
       final saved = data['campus'] as String? ?? '';
       // Accounts made before campuses existed default to Kigali.
-      return basic.copyWith(campus: saved.isEmpty ? 'Kigali Campus' : saved);
+      final savedPhoto = data['photoUrl'] as String?;
+      return basic.copyWith(
+        campus: saved.isEmpty ? 'Kigali Campus' : saved,
+        photoUrl: basic.photoUrl ?? savedPhoto,
+      );
     } on FirebaseException {
       return basic;
     }

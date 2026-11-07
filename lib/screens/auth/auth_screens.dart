@@ -340,18 +340,13 @@ class _AuthLayout extends StatelessWidget {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.apartment_rounded,
-                        color: theme.colorScheme.onPrimary,
-                        size: 28,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 56,
+                        height: 56,
+                        semanticLabel: 'ALU',
                       ),
                     ),
                   ),

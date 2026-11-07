@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_icons.dart';
+
 import '../models/incident.dart';
 import '../services/image_upload_service.dart';
 
@@ -134,7 +136,7 @@ class IncidentCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Icons.schedule_rounded,
+                    Ph.clock,
                     size: 15,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -148,7 +150,7 @@ class IncidentCard extends StatelessWidget {
                   if (staffView) ...[
                     const SizedBox(width: 14),
                     Icon(
-                      Icons.person_outline_rounded,
+                      Ph.user,
                       size: 15,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -168,7 +170,7 @@ class IncidentCard extends StatelessWidget {
                   ] else
                     const Spacer(),
                   const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right_rounded),
+                  const Icon(Ph.caretRightBold, size: 16),
                 ],
               ),
             ],
@@ -183,7 +185,7 @@ class IncidentCard extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.image_outlined, color: theme.colorScheme.onSurfaceVariant),
+        Icon(Ph.image, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(height: 2),
         Text('No image', style: theme.textTheme.labelSmall),
       ],

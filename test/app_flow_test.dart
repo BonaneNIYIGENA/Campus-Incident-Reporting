@@ -1,4 +1,7 @@
 import 'package:cir/main.dart';
+import 'package:cir/widgets/floating_nav.dart';
+import 'package:cir/widgets/notifications_sheet.dart';
+import 'package:cir/widgets/splash_screen.dart';
 import 'package:cir/services/auth_service.dart';
 import 'package:cir/services/incident_service.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -123,12 +126,15 @@ void main() {
     await seed('Light out near the library');
     await tester.pumpWidget(await app(user: student()));
     await tester.pumpAndSettle();
-    expect(find.text('Good day, Aline'), findsOneWidget);
+    expect(find.text('Aline'), findsOneWidget);
+    expect(find.byType(FloatingNavBar), findsOneWidget);
 
-    await tester.tap(find.text('Reports'));
+    await tester.tap(find.byTooltip('Reports'));
     await tester.pumpAndSettle();
     expect(find.text('Campus reports'), findsOneWidget);
     expect(find.text('Light out near the library'), findsOneWidget);
+    // The nav bar stays on screen when a tab changes.
+    expect(find.byType(FloatingNavBar), findsOneWidget);
 
     await seed('Broken chair in room 4');
     await tester.pumpAndSettle();
@@ -138,10 +144,15 @@ void main() {
   testWidgets('a student submits a report and it is saved to Firestore', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(900, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(await app(user: student()));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('New report'));
     await tester.pumpAndSettle();
+    // The nav bar is still there on the report form.
+    expect(find.byType(FloatingNavBar), findsOneWidget);
 
     await tester.ensureVisible(find.text('Submit report'));
     await tester.tap(find.text('Submit report'));
@@ -191,7 +202,7 @@ void main() {
     await seed('Water pressure is low in Residence B');
     await tester.pumpWidget(await app(user: staff()));
     await tester.pumpAndSettle();
-    expect(find.text('Campus Care · Staff'), findsOneWidget);
+    expect(find.text('Staff overview'), findsOneWidget);
 
     await tester.tap(find.text('View all'));
     await tester.pumpAndSettle();
@@ -218,7 +229,121 @@ void main() {
   testWidgets('students never see the staff dashboard', (tester) async {
     await tester.pumpWidget(await app(user: student()));
     await tester.pumpAndSettle();
-    expect(find.text('Campus Care · Staff'), findsNothing);
+    expect(find.text('Staff overview'), findsNothing);
     expect(find.text('Update status'), findsNothing);
+  });
+
+  testWidgets('alerts open as a popup and the nav bar stays visible', (
+    tester,
+  ) async {
+    await seed('Broken tap in the gym', uid: 'student1');
+    final id = (await db.collection('incidents').get()).docs.single.id;
+    await incidents.updateStatus(
+      id: id,
+      status: 'In Progress',
+      note: 'A plumber is on the way',
+      changedBy: 'Jordan Staff',
+    );
+    await tester.pumpWidget(await app(user: student()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Alerts'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotificationsPanel), findsOneWidget);
+    expect(find.text('Updates'), findsOneWidget);
+    expect(
+      find.text('Broken tap in the gym is now In Progress'),
+      findsOneWidget,
+    );
+    expect(find.byType(FloatingNavBar), findsOneWidget);
+
+    await tester.tap(find.text('Broken tap in the gym is now In Progress'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotificationsPanel), findsNothing);
+    expect(find.text('Report details'), findsOneWidget);
+    expect(find.byType(FloatingNavBar), findsOneWidget);
+  });
+
+  testWidgets('the nav bar shows on report details and tabs switch', (
+    tester,
+  ) async {
+    await seed('Light out near the library');
+    await tester.pumpWidget(await app(user: student()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reports'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Light out near the library'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report details'), findsOneWidget);
+    expect(find.byType(FloatingNavBar), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report details'), findsNothing);
+    expect(find.text('Account and preferences'), findsOneWidget);
+  });
+
+  testWidgets('staff get the facilities tab and no new report button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(await app(user: staff()));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Facilities'), findsOneWidget);
+    expect(find.byTooltip('New report'), findsNothing);
+  });
+
+  testWidgets('the splash shows the logo and a spinner', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('swipe right marks an alert read and swipe left deletes it', (
+    tester,
+  ) async {
+    await seed('Broken tap in the gym', uid: 'student1');
+    final id = (await db.collection('incidents').get()).docs.single.id;
+    await incidents.updateStatus(
+      id: id,
+      status: 'In Progress',
+      note: 'A plumber is on the way',
+      changedBy: 'Jordan Staff',
+    );
+    await tester.pumpWidget(await app(user: student()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Alerts'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 new'), findsOneWidget);
+
+    final tile = find.text('Broken tap in the gym is now In Progress');
+    await tester.drag(tile, const Offset(500, 0));
+    await tester.pumpAndSettle();
+    expect(tile, findsOneWidget);
+    expect(find.text('1 new'), findsNothing);
+
+    await tester.drag(tile, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(tile, findsNothing);
+    expect(find.textContaining('all caught up'), findsOneWidget);
+  });
+
+  testWidgets('log out appears in the nav bar on the account tab only', (
+    tester,
+  ) async {
+    await tester.pumpWidget(await app(user: student()));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Log out'), findsNothing);
+
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Log out'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Log out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Log out?'), findsOneWidget);
+    await tester.tap(find.text('Log out').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back'), findsOneWidget);
   });
 }

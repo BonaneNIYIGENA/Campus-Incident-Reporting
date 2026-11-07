@@ -1,38 +1,41 @@
 import 'package:flutter/material.dart';
+
+import '../../theme/app_icons.dart';
+
 import 'package:provider/provider.dart';
 
 import '../../models/incident.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/incident_provider.dart';
-import '../../screens/auth/auth_gate.dart';
+import '../../providers/theme_provider.dart';
 import '../../screens/incident_screens.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/incident_card.dart';
-import 'facility_management_screen.dart';
+import '../../widgets/stat_tile.dart';
+import '../../widgets/user_avatar.dart';
+import '../shell/app_shell.dart';
 
 class StaffDashboard extends StatelessWidget {
-  const StaffDashboard({super.key, required this.name, this.campus = ''});
-  final String name;
-  final String campus;
+  const StaffDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final provider = context.watch<IncidentProvider>();
+    final user = context.watch<AuthProvider>().user;
     final reports = provider.items;
-    final first = name.trim().split(RegExp(r'\s+')).first;
+    final first = (user?.displayName ?? '').trim().split(RegExp(r'\s+')).first;
+    final shell = ShellScope.maybeOf(context);
+    final dark = theme.brightness == Brightness.dark;
+
+    void showStatus(String status) {
+      provider.setStatus(status);
+      shell?.goTab(1);
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campus Care · Staff'),
-        actions: [
-          IconButton(
-            tooltip: 'Account and preferences',
-            onPressed: () => _open(context, const AccountSettingsScreen()),
-            icon: const Icon(Icons.account_circle_outlined),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: SafeArea(
+        bottom: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 720;
@@ -42,161 +45,130 @@ class StaffDashboard extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(
                     wide ? 28 : 20,
-                    16,
+                    14,
                     wide ? 28 : 20,
-                    30,
+                    24,
                   ),
                   children: [
-                    Text(
-                      'Good day, $first',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Here’s the campus facilities overview.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                    Row(
+                      children: [
+                        UserAvatar(user: user, size: 48),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Staff overview',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              Text(
+                                first,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          tooltip: 'Toggle theme',
+                          onPressed: () => context
+                              .read<ThemeProvider>()
+                              .setMode(dark ? ThemeMode.light : ThemeMode.dark),
+                          icon: Icon(dark ? Ph.sun : Ph.moon, size: 20),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 22),
-                    OutlinedButton.icon(
-                      onPressed: () => _open(
-                        context,
-                        FacilityManagementScreen(
-                          campus: campus.isEmpty ? 'Kigali Campus' : campus,
-                        ),
-                      ),
-                      icon: const Icon(Icons.apartment_outlined),
-                      label: const Text('Manage campus facilities'),
-                    ),
-                    Card(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: .55,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.fact_check_outlined,
-                              color: theme.colorScheme.primary,
-                              size: 25,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Reports that need your attention',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Review new issues and keep students informed.',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
                     GridView.count(
                       crossAxisCount: wide ? 4 : 2,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: wide ? 1.7 : 1.55,
+                      childAspectRatio: wide ? 1.7 : 1.35,
                       children: [
-                        _StaffMetric(
+                        StatTile(
                           label: 'New',
-                          count: _count(reports, 'Submitted'),
-                          icon: Icons.fiber_new_rounded,
-                          color: AppTheme.green,
+                          value: _count(reports, 'Submitted'),
+                          icon: Ph.trayFill,
+                          tone: Tone.mint,
+                          onTap: () => showStatus('Submitted'),
                         ),
-                        _StaffMetric(
+                        StatTile(
                           label: 'In progress',
-                          count: _count(reports, 'In Progress'),
-                          icon: Icons.handyman_outlined,
-                          color: AppTheme.red,
+                          value: _count(reports, 'In Progress'),
+                          icon: Ph.wrenchFill,
+                          tone: Tone.sand,
+                          onTap: () => showStatus('In Progress'),
                         ),
-                        _StaffMetric(
+                        StatTile(
                           label: 'Resolved',
-                          count: _count(reports, 'Resolved'),
-                          icon: Icons.check_circle_outline_rounded,
-                          color: const Color(0xFF42856A),
+                          value: _count(reports, 'Resolved'),
+                          icon: Ph.checkCircleFill,
+                          tone: Tone.lime,
+                          onTap: () => showStatus('Resolved'),
                         ),
-                        _StaffMetric(
+                        StatTile(
                           label: 'Rejected',
-                          count: _count(reports, 'Rejected'),
-                          icon: Icons.cancel_outlined,
-                          color: AppTheme.red,
+                          value: _count(reports, 'Rejected'),
+                          icon: Ph.xCircleFill,
+                          tone: Tone.blush,
+                          onTap: () => showStatus('Rejected'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 26),
                     Row(
                       children: [
                         Expanded(
                           child: Text(
                             'Recent reports',
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                         TextButton(
-                          onPressed: () => _open(
-                            context,
-                            const IncidentListScreen(staffView: true),
-                          ),
+                          onPressed: () {
+                            provider.setStatus('All');
+                            shell?.goTab(1);
+                          },
                           child: const Text('View all'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     TextField(
                       onChanged: provider.setQuery,
                       decoration: const InputDecoration(
                         hintText: 'Search by title or location',
-                        prefixIcon: Icon(Icons.search_rounded),
+                        prefixIcon: Icon(Ph.magnifyingGlass),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _StatusFilter(
-                          label: 'All reports',
-                          value: 'All',
-                          selected: provider.status == 'All',
-                        ),
-                        _StatusFilter(
-                          label: 'New',
-                          value: 'Submitted',
-                          selected: provider.status == 'Submitted',
-                        ),
-                        _StatusFilter(
-                          label: 'In progress',
-                          value: 'In Progress',
-                          selected: provider.status == 'In Progress',
-                        ),
-                        _StatusFilter(
-                          label: 'Resolved',
-                          value: 'Resolved',
-                          selected: provider.status == 'Resolved',
-                        ),
+                        for (final (label, value) in const [
+                          ('All reports', 'All'),
+                          ('New', 'Submitted'),
+                          ('In progress', 'In Progress'),
+                          ('Resolved', 'Resolved'),
+                          ('Rejected', 'Rejected'),
+                        ])
+                          FilterChip(
+                            label: Text(label),
+                            selected: provider.status == value,
+                            showCheckmark: false,
+                            onSelected: (_) => provider.setStatus(value),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -209,12 +181,12 @@ class StaffDashboard extends StatelessWidget {
                       )
                     else if (provider.error != null && reports.isEmpty)
                       _DashboardMessage(
-                        icon: Icons.cloud_off_outlined,
+                        icon: Ph.cloudSlashFill,
                         text: provider.error!,
                       )
                     else if (provider.visibleItems.isEmpty)
                       const _DashboardMessage(
-                        icon: Icons.task_alt_rounded,
+                        icon: Ph.checkCircleFill,
                         text: 'You’re all caught up. New campus reports will appear here.',
                       )
                     else
@@ -227,11 +199,12 @@ class StaffDashboard extends StatelessWidget {
                                 incident: item,
                                 staffView: true,
                                 canDelete: false,
-                                onTap: () => _open(
-                                  context,
-                                  IncidentDetailScreen(
-                                    incident: item,
-                                    staffView: true,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => IncidentDetailScreen(
+                                      incident: item,
+                                      staffView: true,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -244,103 +217,11 @@ class StaffDashboard extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          if (index == 1) {
-            _open(context, const IncidentListScreen(staffView: true));
-          }
-          if (index == 2) _open(context, const AccountSettingsScreen());
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: 'Overview',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            label: 'Account',
-          ),
-        ],
-      ),
     );
   }
 
   int _count(List<Incident> items, String status) =>
       items.where((item) => item.status == status).length;
-}
-
-void _open(BuildContext context, Widget screen) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-
-class _StaffMetric extends StatelessWidget {
-  const _StaffMetric({
-    required this.label,
-    required this.count,
-    required this.icon,
-    required this.color,
-  });
-  final String label;
-  final int count;
-  final IconData icon;
-  final Color color;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 19),
-                const Spacer(),
-                Text(
-                  count.toString(),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusFilter extends StatelessWidget {
-  const _StatusFilter({
-    required this.label,
-    required this.value,
-    required this.selected,
-  });
-  final String label, value;
-  final bool selected;
-  @override
-  Widget build(BuildContext context) => FilterChip(
-    label: Text(label),
-    selected: selected,
-    showCheckmark: false,
-    onSelected: (_) => context.read<IncidentProvider>().setStatus(value),
-  );
 }
 
 class _DashboardMessage extends StatelessWidget {
@@ -353,7 +234,7 @@ class _DashboardMessage extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
+          Icon(icon, size: 40, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 12),
           Text(text, textAlign: TextAlign.center),
         ],
