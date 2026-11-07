@@ -123,6 +123,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _visible = false;
+  String _campus = 'Kigali Campus';
 
   @override
   void dispose() {
@@ -165,6 +166,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _campus,
+            decoration: const InputDecoration(
+              labelText: 'Your campus',
+              prefixIcon: Icon(Icons.location_city_outlined),
+            ),
+            items: const ['Kigali Campus', 'Mauritius Campus']
+                .map(
+                  (campus) =>
+                      DropdownMenuItem(value: campus, child: Text(campus)),
+                )
+                .toList(),
+            onChanged: (campus) {
+              if (campus != null) setState(() => _campus = campus);
+            },
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _password,
             obscureText: !_visible,
@@ -203,6 +221,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 _name.text,
                 _email.text,
                 _password.text,
+                campus: _campus,
               );
               if (!context.mounted) return;
               if (ok) {

@@ -1,3 +1,5 @@
+import '../utils/user_role.dart';
+
 class AppUser {
   const AppUser({
     required this.uid,
@@ -14,6 +16,8 @@ class AppUser {
   final String role;
   final String campus;
   final bool emailVerified;
+
+  bool get isAdmin => isAdminEmail(email);
 
   AppUser copyWith({
     bool? emailVerified,

@@ -27,6 +27,14 @@ const student = (uid = 'student1') => ({
   verified: true,
 });
 const staff = { uid: 'staff1', email: 'jordan@alueducation.com', verified: true };
+const admin = { uid: 'admin1', email: 'b.niyigena@alustudent.com', verified: true };
+const photo = 'https://res.cloudinary.com/dgxaazbuq/image/upload/v1/cir/incidents/a.jpg';
+
+const change = (status, note) => ({
+  status,
+  updatedAt: serverTimestamp(),
+  history: arrayUnion(event(status, note)),
+});
 
 function db(who) {
   if (!who) return env.unauthenticatedContext().firestore();
@@ -98,6 +106,7 @@ describe('users', () => {
     name: 'Aline Student',
     email: who.email,
     role: who.email.endsWith('@alueducation.com') ? 'staff' : 'student',
+    campus: 'Kigali Campus',
     createdAt: serverTimestamp(),
     ...overrides,
   });
@@ -199,14 +208,24 @@ describe('creating incidents', () => {
     await assertSucceeds(setDoc(doc(db(me), 'incidents', 'n1'), newIncident(me.uid)));
   });
 
-  test('a report with an optional photo url is allowed', async () => {
+  test('a report with a Cloudinary photo url is allowed', async () => {
     const me = student();
     await assertSucceeds(
-      setDoc(
-        doc(db(me), 'incidents', 'n1'),
-        newIncident(me.uid, { imageUrl: 'https://example.com/a.jpg' }),
-      ),
+      setDoc(doc(db(me), 'incidents', 'n1'), newIncident(me.uid, { imageUrl: photo })),
     );
+  });
+
+  test('a photo url from anywhere else is refused', async () => {
+    const me = student();
+    for (const url of [
+      'https://example.com/a.jpg',
+      'https://res.cloudinary.com/someoneelse/image/upload/a.jpg',
+      'http://res.cloudinary.com/dgxaazbuq/image/upload/a.jpg',
+    ]) {
+      await assertFails(
+        setDoc(doc(db(me), 'incidents', 'n1'), newIncident(me.uid, { imageUrl: url })),
+      );
+    }
   });
 
   test('an anonymous report must not carry a name', async () => {
@@ -257,7 +276,8 @@ describe('creating incidents', () => {
       { description: 'too short' },
       { description: 'a'.repeat(501) },
       { category: 'Parties' },
-      { building: 'Moon' },
+      { building: 'ab' },
+      { building: 'b'.repeat(101) },
       { isAdmin: true },
     ]) {
       await assertFails(
@@ -278,12 +298,6 @@ describe('creating incidents', () => {
 });
 
 describe('status updates', () => {
-  const change = (status, note) => ({
-    status,
-    updatedAt: serverTimestamp(),
-    history: arrayUnion(event(status, note)),
-  });
-
   test('staff can move a report forward and the history grows', async () => {
     await seed('r1');
     await assertSucceeds(
@@ -452,6 +466,52 @@ describe('deleting incidents', () => {
   test('staff can delete', async () => {
     await seed('r1', { status: 'Resolved' });
     await assertSucceeds(deleteDoc(doc(db(staff), 'incidents', 'r1')));
+  });
+});
+
+describe('the admin account', () => {
+  test('keeps the student role on its own profile', async () => {
+    const profileFor = (role) => ({
+      name: 'Admin Student',
+      email: admin.email,
+      role,
+      campus: 'Kigali Campus',
+      createdAt: serverTimestamp(),
+    });
+    await assertFails(setDoc(doc(db(admin), 'users', admin.uid), profileFor('staff')));
+    await assertSucceeds(setDoc(doc(db(admin), 'users', admin.uid), profileFor('student')));
+  });
+
+  test('can move a report forward like staff', async () => {
+    await seed('r1');
+    await assertSucceeds(updateDoc(doc(db(admin), 'incidents', 'r1'), change('In Progress')));
+  });
+
+  test('can manage campus facilities', async () => {
+    await assertSucceeds(
+      setDoc(doc(db(admin), 'campusFacilities', 'Kigali Campus', 'facilities', 'lib'), {
+        name: 'Library',
+        areas: ['Study area'],
+      }),
+    );
+  });
+
+  test('an unverified admin address gets nothing extra', async () => {
+    await seed('r1');
+    await assertFails(
+      updateDoc(doc(db({ ...admin, verified: false }), 'incidents', 'r1'), change('In Progress')),
+    );
+  });
+
+  test('other student addresses stay students', async () => {
+    await seed('r1');
+    await assertFails(updateDoc(doc(db(student('other')), 'incidents', 'r1'), change('In Progress')));
+    await assertFails(
+      updateDoc(
+        doc(db({ uid: 'x', email: 'b.niyigena@gmail.com', verified: true }), 'incidents', 'r1'),
+        change('In Progress'),
+      ),
+    );
   });
 });
 

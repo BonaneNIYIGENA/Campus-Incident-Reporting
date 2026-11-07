@@ -17,13 +17,23 @@ service cloud.firestore {
       return isAlu() && request.auth.token.email_verified == true;
     }
 
-    // Staff are verified accounts on the @alueducation.com domain.
+    // The one account that may act as staff while holding a student address.
+    function isAdmin() {
+      return isVerified() && emailOf() in ['b.niyigena@alustudent.com'];
+    }
+
+    // Staff are verified @alueducation.com accounts, plus the admin above.
     function isStaff() {
-      return isVerified() && emailOf().matches('[^@]+@alueducation\\.com');
+      return isVerified()
+        && (emailOf().matches('[^@]+@alueducation\\.com') || isAdmin());
     }
 
     function roleForEmail() {
       return emailOf().matches('[^@]+@alueducation\\.com') ? 'staff' : 'student';
+    }
+
+    function isPhotoUrl(u) {
+      return u is string && u.matches('https://res\\.cloudinary\\.com/dgxaazbuq/image/upload/.*');
     }
 
     function validCategory(c) {
@@ -31,11 +41,11 @@ service cloud.firestore {
     }
 
     function validBuilding(b) {
-      return b in ['Main Campus', 'Kigali Campus', 'Residence', 'Library', 'Cafeteria', 'Other'];
+      return b is string && b.size() >= 3 && b.size() <= 100;
     }
 
     function validStatus(s) {
-      return s in ['Submitted', 'Under Review', 'In Progress', 'Resolved', 'Rejected'];
+      return s in ['Submitted', 'In Progress', 'Resolved', 'Rejected'];
     }
 
     match /users/{uid} {
@@ -44,23 +54,32 @@ service cloud.firestore {
       // Created at sign up, before the email is verified, so only the domain is checked.
       allow create: if isAlu()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
-        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'campus', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'campus', 'createdAt'])
         && request.resource.data.role == roleForEmail()
         && request.resource.data.email == emailOf()
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2
         && request.resource.data.name.size() <= 50
+        && request.resource.data.campus in ['Kigali Campus', 'Mauritius Campus']
         && request.resource.data.createdAt == request.time;
 
       allow update: if isAlu()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photoUrl', 'campus'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2
-        && request.resource.data.name.size() <= 50;
+        && request.resource.data.name.size() <= 50
+        && (!('photoUrl' in request.resource.data.keys()) || isPhotoUrl(request.resource.data.photoUrl))
+        && (!('campus' in request.resource.data.keys()) || request.resource.data.campus in ['Kigali Campus', 'Mauritius Campus']);
 
       allow delete: if false;
+    }
+
+    match /campusFacilities/{campus}/facilities/{facilityId} {
+      allow read: if isVerified();
+      allow create, update, delete: if isStaff()
+        && campus in ['Kigali Campus', 'Mauritius Campus'];
     }
 
     match /incidents/{id} {
@@ -101,7 +120,7 @@ service cloud.firestore {
           && d.updatedAt == request.time
           && d.history.size() == 1
           && d.history[0].status == 'Submitted'
-          && (!('imageUrl' in d.keys()) || d.imageUrl is string);
+          && (!('imageUrl' in d.keys()) || isPhotoUrl(d.imageUrl));
       }
 
       function isStatusChange() {

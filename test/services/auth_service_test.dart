@@ -47,7 +47,7 @@ void main() {
       expect(profile.data()!['name'], 'Aline Student');
     });
 
-    test('gives @alueducation.com accounts the staff role', () async {
+    test('@alueducation.com accounts are staff and @alustudent.com are students', () async {
       final service = AuthService(auth: MockFirebaseAuth(), firestore: db);
       final user = await service.signUp(
         'Jordan Staff',
@@ -56,6 +56,16 @@ void main() {
       );
       final profile = await db.collection('users').doc(user.uid).get();
       expect(profile.data()!['role'], 'staff');
+      expect(profile.data()!['campus'], 'Kigali Campus');
+      expect(user.role, 'staff');
+
+      final other = await AuthService(
+        auth: MockFirebaseAuth(),
+        firestore: db,
+      ).signUp('Aline Student', 'aline@alustudent.com', 'Campus1234');
+      final saved = await db.collection('users').doc(other.uid).get();
+      expect(saved.data()!['role'], 'student');
+      expect(other.isAdmin, isFalse);
     });
 
     test('rejects non ALU emails before calling Firebase', () async {
