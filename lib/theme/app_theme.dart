@@ -152,23 +152,53 @@ class AppTheme {
         backgroundColor: card,
         surfaceTintColor: Colors.transparent,
       ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: card,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: colors.primary, width: 1.6),
+      inputDecorationTheme: _inputTheme(colors, dark),
+    );
+  }
+
+  static InputDecorationTheme _inputTheme(ColorScheme colors, bool dark) {
+    final fill = dark ? const Color(0xFF141816) : const Color(0xFFF5F7F5);
+    final line = dark ? const Color(0xFF262C28) : const Color(0xFFE4E8E4);
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    return InputDecorationTheme(
+      filled: true,
+      fillColor: fill,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      border: border(line),
+      enabledBorder: border(line),
+      disabledBorder: border(line),
+      focusedBorder: border(colors.primary, 1.8),
+      errorBorder: border(colors.error, 1.4),
+      focusedErrorBorder: border(colors.error, 1.8),
+      labelStyle: TextStyle(color: colors.onSurfaceVariant),
+      floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+        (states) => TextStyle(
+          fontWeight: FontWeight.w600,
+          color: states.contains(WidgetState.error)
+              ? colors.error
+              : states.contains(WidgetState.focused)
+              ? colors.primary
+              : colors.onSurfaceVariant,
         ),
       ),
+      hintStyle: TextStyle(color: colors.onSurfaceVariant),
+      prefixIconColor: WidgetStateColor.resolveWith(
+        (states) => states.contains(WidgetState.error)
+            ? colors.error
+            : states.contains(WidgetState.focused)
+            ? colors.primary
+            : colors.onSurfaceVariant,
+      ),
+      suffixIconColor: WidgetStateColor.resolveWith(
+        (states) => states.contains(WidgetState.focused)
+            ? colors.primary
+            : colors.onSurfaceVariant,
+      ),
+      counterStyle: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
     );
   }
 

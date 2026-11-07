@@ -313,4 +313,190 @@ class Ph {
     fontPackage: _pkg,
     matchTextDirection: true,
   );
+  static const envelopeSimple = IconData(
+    0xe218,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const lockKey = IconData(
+    0xe2fe,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const eye = IconData(
+    0xe220,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const eyeSlash = IconData(
+    0xe224,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const caretDown = IconData(
+    0xe136,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const slidersHorizontal = IconData(
+    0xe434,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const check = IconData(
+    0xe182,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const info = IconData(
+    0xe2ce,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const pencilSimple = IconData(
+    0xe3b4,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const textAlignLeft = IconData(
+    0xe484,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const mapPin = IconData(
+    0xe316,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const tag = IconData(
+    0xe478,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const textT = IconData(
+    0xe48a,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const identificationCard = IconData(
+    0xe2c8,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const shieldCheck = IconData(
+    0xe40c,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const arrowRight = IconData(
+    0xe06c,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const arrowLeft = IconData(
+    0xe058,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const warningCircle = IconData(
+    0xe4e2,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const sealCheck = IconData(
+    0xe606,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const cloudSlash = IconData(
+    0xe1b6,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const lockSimple = IconData(
+    0xe308,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const infoFill = IconData(
+    0xe2ce,
+    fontFamily: 'PhosphorFill',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const sealCheckFill = IconData(
+    0xe606,
+    fontFamily: 'PhosphorFill',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const envelopeSimpleFill = IconData(
+    0xe218,
+    fontFamily: 'PhosphorFill',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const caretDownBold = IconData(
+    0xe136,
+    fontFamily: 'PhosphorBold',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const arrowRightBold = IconData(
+    0xe06c,
+    fontFamily: 'PhosphorBold',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const eyeBold = IconData(
+    0xe220,
+    fontFamily: 'PhosphorBold',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const eyeSlashBold = IconData(
+    0xe224,
+    fontFamily: 'PhosphorBold',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const slidersHorizontalBold = IconData(
+    0xe434,
+    fontFamily: 'PhosphorBold',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const thumbsUp = IconData(
+    0xe48e,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const thumbsUpFill = IconData(
+    0xe48e,
+    fontFamily: 'PhosphorFill',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
 }

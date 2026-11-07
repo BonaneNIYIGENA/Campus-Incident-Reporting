@@ -69,4 +69,66 @@ void main() {
       expect(Validators.required('Library', 'Building'), isNull);
     });
   });
+
+  group('field limits and messages', () {
+    test('email says what is wrong', () {
+      expect(Validators.email('nope'), contains('@'));
+      expect(Validators.email('a@b@alustudent.com'), contains('one @'));
+      expect(Validators.email('${'a' * 65}@alustudent.com'), contains('64'));
+      expect(Validators.email('a b@alustudent.com'), contains('letters'));
+      expect(Validators.email('.a@alustudent.com'), contains('letters'));
+      expect(Validators.email('a..b@alustudent.com'), contains('letters'));
+    });
+
+    test('password tells which rule is missing first', () {
+      expect(Validators.password('Abc1'), 'Use at least 8 characters');
+      expect(Validators.password('abcdefg1'), 'Add an uppercase letter');
+      expect(Validators.password('ABCDEFG1'), 'Add a lowercase letter');
+      expect(Validators.password('Abcdefgh'), 'Add a number');
+      expect(Validators.password('Abc defg1'), 'Password can’t contain spaces');
+      expect(Validators.password('A1b${'c' * 70}'), contains('64'));
+    });
+
+    test('password score counts the rules met', () {
+      expect(Validators.passwordScore(''), 0);
+      expect(Validators.passwordScore('abc'), 1);
+      expect(Validators.passwordScore('Abcdefg1'), 4);
+    });
+
+    test('confirmation must match', () {
+      expect(Validators.confirmPassword('', 'Abcdefg1'), isNotNull);
+      expect(Validators.confirmPassword('Abcdefg2', 'Abcdefg1'), isNotNull);
+      expect(Validators.confirmPassword('Abcdefg1', 'Abcdefg1'), isNull);
+    });
+
+    test('names accept accented letters but not digits or symbols', () {
+      expect(Validators.name('Zoë Müller'), isNull);
+      expect(Validators.name('Chloé D’Souza'), isNull);
+      expect(Validators.name('J'), 'Enter at least 2 letters');
+      expect(Validators.name('Ann3'), contains('letters'));
+    });
+
+    test('report text rejects markup characters', () {
+      expect(Validators.title('Leak <script> now'), isNotNull);
+      expect(Validators.description('The pipe {leaks} badly today'), isNotNull);
+      expect(Validators.title('Leak (urgent) at Library!'), isNull);
+    });
+
+    test('a rejection needs a reason', () {
+      expect(Validators.updateNote('', mandatory: true), isNotNull);
+      expect(Validators.updateNote('', mandatory: false), isNull);
+      expect(Validators.updateNote('x' * 201, mandatory: false), isNotNull);
+      expect(Validators.updateNote('Duplicate of #4', mandatory: true), isNull);
+    });
+
+    test('facility names and areas', () {
+      expect(Validators.facilityName('Main Library (West)'), isNull);
+      expect(Validators.facilityName('A'), isNotNull);
+      expect(Validators.facilityName('Lab <1>'), isNotNull);
+      expect(Validators.facilityName('x' * 41), isNotNull);
+      expect(Validators.areas('Study area\nGroup rooms'), isNull);
+      expect(Validators.areas('x' * 41), isNotNull);
+      expect(Validators.areas(List.filled(21, 'Room').join('\n')), isNotNull);
+    });
+  });
 }
