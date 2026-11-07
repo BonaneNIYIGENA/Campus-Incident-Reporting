@@ -38,8 +38,69 @@ class FieldError extends StatelessWidget {
   }
 }
 
+// The icon at the start of a field, with a thin divider between it and the text.
+class FieldIcon extends StatelessWidget {
+  const FieldIcon(this.icon, {super.key});
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 18, right: 12),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 12),
+        Container(
+          width: 1.2,
+          height: 24,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ],
+    ),
+  );
+}
+
+// A soft glow behind a field while it is active.
+class FieldGlow extends StatelessWidget {
+  const FieldGlow({
+    super.key,
+    required this.active,
+    required this.child,
+    this.radius = 28,
+  });
+  final bool active;
+  final double radius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 220),
+    curve: Curves.easeOut,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      boxShadow: active
+          ? [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: .2),
+                blurRadius: 18,
+                spreadRadius: 1,
+              ),
+            ]
+          : const [],
+    ),
+    child: child,
+  );
+}
+
+InputBorder _withRadius(InputBorder? border, double radius) =>
+    border is OutlineInputBorder
+    ? border.copyWith(borderRadius: BorderRadius.circular(radius))
+    : (border ?? const OutlineInputBorder());
+
 // A text field with a leading icon, live validation and a character counter while typing.
-class AppTextField extends StatelessWidget {
+class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
     required this.controller,
@@ -87,29 +148,65 @@ class AppTextField extends StatelessWidget {
   final GlobalKey<FormFieldState<String>>? fieldKey;
 
   @override
-  Widget build(BuildContext context) => TextFormField(
-    key: fieldKey,
-    controller: controller,
-    focusNode: focusNode,
-    validator: validator,
-    keyboardType: keyboardType,
-    textInputAction: textInputAction,
-    inputFormatters: inputFormatters,
-    maxLength: maxLength,
-    maxLines: maxLines,
-    minLines: minLines,
-    obscureText: obscureText,
-    autofillHints: autofillHints,
-    textCapitalization: textCapitalization,
-    autocorrect: autocorrect,
-    enableSuggestions: enableSuggestions,
-    onChanged: onChanged,
-    onFieldSubmitted: onSubmitted,
-    autovalidateMode: AutovalidateMode.onUserInteraction,
-    errorBuilder: (context, message) => FieldError(message),
-    buildCounter:
-        (context, {required currentLength, required isFocused, maxLength}) =>
-            isFocused && maxLength != null
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  FocusNode? _own;
+  FocusNode get _focus => widget.focusNode ?? (_own ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_changed);
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_changed);
+    _own?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final multiline = widget.maxLines > 1;
+    final radius = multiline ? 24.0 : 28.0;
+    final t = Theme.of(context).inputDecorationTheme;
+    return FieldGlow(
+      active: _focus.hasFocus,
+      radius: radius,
+      child: TextFormField(
+        key: widget.fieldKey,
+        controller: widget.controller,
+        focusNode: _focus,
+        validator: widget.validator,
+        keyboardType: widget.keyboardType,
+        textInputAction: widget.textInputAction,
+        inputFormatters: widget.inputFormatters,
+        maxLength: widget.maxLength,
+        maxLines: widget.maxLines,
+        minLines: widget.minLines,
+        obscureText: widget.obscureText,
+        autofillHints: widget.autofillHints,
+        textCapitalization: widget.textCapitalization,
+        autocorrect: widget.autocorrect,
+        enableSuggestions: widget.enableSuggestions,
+        onChanged: widget.onChanged,
+        onFieldSubmitted: widget.onSubmitted,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        errorBuilder: (context, message) => FieldError(message),
+        buildCounter:
+            (
+              context, {
+              required currentLength,
+              required isFocused,
+              maxLength,
+            }) => isFocused && maxLength != null
             ? Text(
                 '$currentLength/$maxLength',
                 style: TextStyle(
@@ -120,15 +217,20 @@ class AppTextField extends StatelessWidget {
                 ),
               )
             : null,
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: hint,
-      alignLabelWithHint: alignLabelWithHint,
-      prefixIcon: Padding(
-        padding: EdgeInsets.only(bottom: maxLines > 1 ? 0 : 0),
-        child: Icon(icon, size: 22),
+        decoration: InputDecoration(
+          labelText: widget.label,
+          hintText: widget.hint,
+          alignLabelWithHint: widget.alignLabelWithHint,
+          prefixIcon: FieldIcon(widget.icon),
+          prefixIconConstraints: const BoxConstraints(),
+          suffixIcon: widget.suffix,
+          border: _withRadius(t.border, radius),
+          enabledBorder: _withRadius(t.enabledBorder, radius),
+          focusedBorder: _withRadius(t.focusedBorder, radius),
+          errorBorder: _withRadius(t.errorBorder, radius),
+          focusedErrorBorder: _withRadius(t.focusedErrorBorder, radius),
+        ),
       ),
-      suffixIcon: suffix,
-    ),
-  );
+    );
+  }
 }

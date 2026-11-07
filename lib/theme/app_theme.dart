@@ -157,20 +157,21 @@ class AppTheme {
   }
 
   static InputDecorationTheme _inputTheme(ColorScheme colors, bool dark) {
-    final fill = dark ? const Color(0xFF141816) : const Color(0xFFF5F7F5);
-    final line = dark ? const Color(0xFF262C28) : const Color(0xFFE4E8E4);
+    // Plain white (or near-black) fields with a clear outline; no tint.
+    final fill = dark ? const Color(0xFF0D100E) : Colors.white;
+    final line = dark ? const Color(0xFF343B36) : const Color(0xFFD3D8D3);
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide(color: color, width: width),
         );
     return InputDecorationTheme(
       filled: true,
       fillColor: fill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      border: border(line),
-      enabledBorder: border(line),
-      disabledBorder: border(line),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      border: border(line, 1.4),
+      enabledBorder: border(line, 1.4),
+      disabledBorder: border(line, 1.4),
       focusedBorder: border(colors.primary, 1.8),
       errorBorder: border(colors.error, 1.4),
       focusedErrorBorder: border(colors.error, 1.8),

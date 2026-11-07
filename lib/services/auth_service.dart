@@ -201,34 +201,57 @@ class AuthService {
     } on ImageUploadFailure catch (e) {
       throw AuthFailure(e.message);
     } on FirebaseException catch (e) {
+      throw AuthFailure(e.message ?? 'Could not update your profile.');
+    }
+  }
+
+  // Saved one field at a time, so a refusal names the field and the others still go through.
+  Future<void> _saveProfile(User user, Map<String, dynamic> fields) async {
+    final ref = _db.collection('users').doc(user.uid);
+    final refused = <String>[];
+    var created = false;
+    for (final entry in fields.entries) {
+      try {
+        await ref.update({entry.key: entry.value});
+      } on FirebaseException catch (e) {
+        if (e.code == 'not-found' && !created) {
+          // Accounts made before profiles were stored get their document now.
+          final email = (user.email ?? '').toLowerCase();
+          try {
+            await ref.set({
+              'name':
+                  fields['name'] ?? user.displayName ?? email.split('@').first,
+              'email': email,
+              'role': roleFromAluEmail(email)?.name ?? 'student',
+              'campus': fields['campus'] ?? 'Kigali Campus',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            created = true;
+            await ref.update({entry.key: entry.value});
+          } on FirebaseException catch (inner) {
+            if (inner.code != 'permission-denied') rethrow;
+            refused.add(_fieldLabel(entry.key));
+          }
+        } else if (e.code == 'permission-denied') {
+          refused.add(_fieldLabel(entry.key));
+        } else {
+          rethrow;
+        }
+      }
+    }
+    if (refused.isNotEmpty) {
       throw AuthFailure(
-        e.code == 'permission-denied'
-            ? 'The database refused the change. The latest security rules need to be published, then try again.'
-            : e.message ?? 'Could not update your profile.',
+        'The database refused to save your ${refused.join(' and ')}. '
+        'The latest security rules need to be published, then try again.',
       );
     }
   }
 
-  Future<void> _saveProfile(User user, Map<String, dynamic> fields) async {
-    final ref = _db.collection('users').doc(user.uid);
-    try {
-      await ref.update(fields);
-    } on FirebaseException catch (e) {
-      if (e.code != 'not-found') rethrow;
-      // Accounts made before profiles were stored get their document now.
-      final email = (user.email ?? '').toLowerCase();
-      await ref.set({
-        'name': fields['name'] ?? user.displayName ?? email.split('@').first,
-        'email': email,
-        'role': roleFromAluEmail(email)?.name ?? 'student',
-        'campus': fields['campus'] ?? 'Kigali Campus',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (fields['photoUrl'] != null) {
-        await ref.update({'photoUrl': fields['photoUrl']});
-      }
-    }
-  }
+  String _fieldLabel(String key) => switch (key) {
+    'photoUrl' => 'photo',
+    'campus' => 'campus',
+    _ => 'name',
+  };
 
   AppUser? _toAppUser(User? user) {
     if (user == null) return null;

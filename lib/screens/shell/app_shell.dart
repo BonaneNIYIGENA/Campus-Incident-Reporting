@@ -10,7 +10,7 @@ import '../../widgets/user_avatar.dart';
 import '../../widgets/floating_nav.dart';
 import '../../widgets/form_sheet.dart';
 import '../../widgets/notifications_sheet.dart';
-import '../auth/auth_gate.dart';
+import '../account/account_screen.dart';
 import '../incident_screens.dart';
 import '../staff/facility_management_screen.dart';
 import '../staff/staff_dashboard.dart';
@@ -185,7 +185,8 @@ class _AppShellState extends State<AppShell> {
 
   void _openAlerts() {
     final navigator = _nav.currentState!;
-    navigator.push(
+    // On the root navigator so the nav bar greys out with the rest of the screen.
+    Navigator.of(context, rootNavigator: true).push(
       TopPanelRoute(
         builder: (_) =>
             NotificationsPanel(staffView: _staff, navigator: navigator),

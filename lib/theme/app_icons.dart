@@ -499,4 +499,34 @@ class Ph {
     fontPackage: _pkg,
     matchTextDirection: true,
   );
+  static const checks = IconData(
+    0xe53a,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const circleHalf = IconData(
+    0xe18c,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const graduationCap = IconData(
+    0xe62c,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const cameraFill = IconData(
+    0xe10e,
+    fontFamily: 'PhosphorFill',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
+  static const seal = IconData(
+    0xe604,
+    fontFamily: 'PhosphorRegular',
+    fontPackage: _pkg,
+    matchTextDirection: true,
+  );
 }

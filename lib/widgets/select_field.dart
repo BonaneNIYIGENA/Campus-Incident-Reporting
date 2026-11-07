@@ -117,31 +117,35 @@ class _SelectBodyState<T> extends State<_SelectBody<T>> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _pick,
-        child: InputDecorator(
-          isFocused: _open,
-          isEmpty: selected == null,
-          isHovering: false,
-          decoration: InputDecoration(
-            labelText: widget.label,
-            hintText: widget.hint,
-            enabled: widget.enabled,
-            prefixIcon: Icon(widget.icon, size: 22),
-            suffixIcon: AnimatedRotation(
-              turns: _open ? .5 : 0,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              child: const Icon(Ph.caretDownBold, size: 18),
+        child: FieldGlow(
+          active: _open,
+          child: InputDecorator(
+            isFocused: _open,
+            isEmpty: selected == null,
+            isHovering: false,
+            decoration: InputDecoration(
+              labelText: widget.label,
+              hintText: widget.hint,
+              enabled: widget.enabled,
+              prefixIcon: FieldIcon(widget.icon),
+              prefixIconConstraints: const BoxConstraints(),
+              suffixIcon: AnimatedRotation(
+                turns: _open ? .5 : 0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: const Icon(Ph.caretDownBold, size: 18),
+              ),
+              error: error == null ? null : FieldError(error),
             ),
-            error: error == null ? null : FieldError(error),
-          ),
-          child: Text(
-            selected?.label ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: widget.enabled
-                  ? theme.colorScheme.onSurface
-                  : theme.disabledColor,
+            child: Text(
+              selected?.label ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: widget.enabled
+                    ? theme.colorScheme.onSurface
+                    : theme.disabledColor,
+              ),
             ),
           ),
         ),
