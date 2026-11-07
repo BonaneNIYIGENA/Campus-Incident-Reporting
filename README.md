@@ -2,7 +2,6 @@
 
 An Android app where ALU students report problems on campus (water, electricity, facilities, furniture, sanitation, safety) and campus staff review them and move them from **Submitted** to **In progress** to **Resolved** (or **Rejected** with a reason). Built with Flutter, Provider, Firebase Authentication, Cloud Firestore and Cloudinary (for photos).
 
-The full write-up, with the architecture, data model, security design, design decisions, testing and the story of how it was built, is in [`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md).
 
 ## What it does
 
@@ -33,7 +32,6 @@ lib/
 firestore.rules        security rules
 rules-tests/           security-rules tests (Node, Firestore emulator)
 test/                  Dart unit, service, provider and widget tests
-docs/                  technical report and screenshots
 ```
 
 Screens talk to providers, providers talk to services, and only services talk to Firebase or Cloudinary.
