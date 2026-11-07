@@ -37,24 +37,24 @@ class SplashScreen extends StatelessWidget {
               builder: (_, scale, child) =>
                   Transform.scale(scale: scale, child: child),
               child: SizedBox(
-                width: 132,
-                height: 132,
+                width: 120,
+                height: 120,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     SizedBox(
-                      width: 132,
-                      height: 132,
+                      width: 120,
+                      height: 120,
                       child: CircularProgressIndicator(
-                        strokeWidth: 3,
+                        strokeWidth: 4,
                         strokeCap: StrokeCap.round,
                         color: colors.primary,
                         backgroundColor: colors.primary.withValues(alpha: .12),
                       ),
                     ),
                     Container(
-                      width: 92,
-                      height: 92,
+                      width: 68,
+                      height: 68,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -66,7 +66,7 @@ class SplashScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(15),
                       child: Image.asset(
                         'assets/images/logo.png',
                         semanticLabel: 'ALU',
@@ -90,7 +90,7 @@ class SplashScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Getting your campus ready',
+                  'Report it. Track it. Get it fixed.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
