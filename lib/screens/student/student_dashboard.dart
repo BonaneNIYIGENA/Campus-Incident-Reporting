@@ -9,6 +9,7 @@ import '../../providers/incident_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../screens/incident_screens.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/alerts_bell.dart';
 import '../../widgets/incident_card.dart';
 import '../../widgets/stat_tile.dart';
 import '../../widgets/user_avatar.dart';
@@ -75,6 +76,8 @@ class StudentDashboard extends StatelessWidget {
                             ],
                           ),
                         ),
+                        AlertsBell(staffView: false),
+                        const SizedBox(width: 8),
                         IconButton.filledTonal(
                           tooltip: 'Toggle theme',
                           onPressed: () => context

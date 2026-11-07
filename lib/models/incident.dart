@@ -63,6 +63,9 @@ class Incident {
   final List<String> upvoters;
   final List<StatusEvent> history;
 
+  // Reports saved before the campus fix start with an empty campus: " · Library · Restrooms".
+  String get location => building.replaceFirst(RegExp(r'^[\s·]+'), '');
+
   factory Incident.fromMap(String id, Map<String, dynamic> map) => Incident(
     id: id,
     title: map['title'] as String? ?? '',

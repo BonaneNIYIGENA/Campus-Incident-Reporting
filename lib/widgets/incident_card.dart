@@ -113,7 +113,7 @@ class IncidentCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${incident.category} · ${incident.building}',
+                          '${incident.category} · ${incident.location}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(

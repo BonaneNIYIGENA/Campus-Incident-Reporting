@@ -70,13 +70,28 @@ class StatTile extends StatelessWidget {
                       children: [
                         iconBubble,
                         const SizedBox(width: 12),
-                        Expanded(child: figures),
+                        Expanded(
+                          child: FittedBox(
+                            alignment: Alignment.centerLeft,
+                            fit: BoxFit.scaleDown,
+                            child: figures,
+                          ),
+                        ),
                       ],
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [iconBubble, figures],
+                      children: [
+                        iconBubble,
+                        Flexible(
+                          child: FittedBox(
+                            alignment: Alignment.centerLeft,
+                            fit: BoxFit.scaleDown,
+                            child: figures,
+                          ),
+                        ),
+                      ],
                     ),
             );
           },

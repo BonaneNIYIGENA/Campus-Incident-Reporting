@@ -12,7 +12,12 @@ import '../models/campus_facility.dart';
 import '../utils/validators.dart';
 import '../theme/app_icons.dart';
 import '../utils/campus_locations.dart';
-import '../widgets/filter_pill.dart';
+import '../widgets/alerts_bell.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/form_sheet.dart';
+import '../widgets/select_field.dart';
+import '../widgets/status_roadmap.dart';
+import '../widgets/reports_filter.dart';
 import '../widgets/incident_card.dart';
 
 const incidentCategories = [
@@ -44,69 +49,24 @@ class _FacilityAreaFields extends StatelessWidget {
     try {
       facilityStream = context.read<FacilityProvider>().watch(campus);
     } catch (_) {
-      return _buildFields(context, const <CampusFacility>[], true);
+      return _fields(context, const <CampusFacility>[], true);
     }
     return StreamBuilder<List<CampusFacility>>(
       stream: facilityStream,
-      builder: (context, snapshot) {
-        final remote = snapshot.data ?? const <CampusFacility>[];
-        final choices = Map<String, List<String>>.from(
-          campusAreas[campus] ?? campusAreas['Kigali Campus']!,
-        )..addAll({for (final item in remote) item.name: item.areas});
-        final facilityValue = choices.containsKey(facility) ? facility : null;
-        final areas = choices[facilityValue] ?? const <String>[];
-        return Column(
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Campus: $campus',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-            ),
-            DropdownButtonFormField<String>(
-              key: ValueKey('facility-$campus'),
-              initialValue: facilityValue,
-              validator: (value) => Validators.required(value, 'Facility'),
-              decoration: const InputDecoration(labelText: 'Facility'),
-              items: choices.keys
-                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                  .toList(),
-              onChanged: (value) => onChanged(value, null),
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              key: ValueKey('area-$campus-$facilityValue'),
-              initialValue: areas.contains(area) ? area : null,
-              validator: (value) => Validators.required(value, 'Specific area'),
-              decoration: const InputDecoration(labelText: 'Specific area'),
-              items: areas
-                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                  .toList(),
-              onChanged: (value) => onChanged(facilityValue, value),
-            ),
-            if (snapshot.hasError)
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Using the campus default facility list.'),
-                ),
-              ),
-          ],
-        );
-      },
+      builder: (context, snapshot) => _fields(
+        context,
+        snapshot.data ?? const <CampusFacility>[],
+        snapshot.hasError,
+      ),
     );
   }
 
-  Widget _buildFields(
+  Widget _fields(
     BuildContext context,
     List<CampusFacility> remote,
     bool fallback,
   ) {
+    final theme = Theme.of(context);
     final choices = Map<String, List<String>>.from(
       campusAreas[campus] ?? campusAreas['Kigali Campus']!,
     )..addAll({for (final item in remote) item.name: item.areas});
@@ -117,32 +77,43 @@ class _FacilityAreaFields extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Campus: $campus',
-              style: Theme.of(context).textTheme.labelLarge,
+            padding: const EdgeInsets.only(bottom: 10, left: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Ph.mapPin, size: 16, color: theme.colorScheme.primary),
+                const SizedBox(width: 6),
+                Text(
+                  'Campus: $campus',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        DropdownButtonFormField<String>(
+        SelectField<String>(
           key: ValueKey('facility-$campus'),
-          initialValue: facilityValue,
+          label: 'Facility',
+          sheetTitle: 'Choose a facility',
+          icon: Ph.buildings,
+          value: facilityValue,
           validator: (value) => Validators.required(value, 'Facility'),
-          decoration: const InputDecoration(labelText: 'Facility'),
-          items: choices.keys
-              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-              .toList(),
+          options: [for (final name in choices.keys) SelectOption(name, name)],
           onChanged: (value) => onChanged(value, null),
         ),
         const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
+        SelectField<String>(
           key: ValueKey('area-$campus-$facilityValue'),
-          initialValue: areas.contains(area) ? area : null,
+          label: 'Specific area',
+          sheetTitle: 'Choose an area',
+          icon: Ph.mapPin,
+          value: areas.contains(area) ? area : null,
+          enabled: areas.isNotEmpty,
+          hint: areas.isEmpty ? 'Choose a facility first' : null,
           validator: (value) => Validators.required(value, 'Specific area'),
-          decoration: const InputDecoration(labelText: 'Specific area'),
-          items: areas
-              .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-              .toList(),
+          options: [for (final name in areas) SelectOption(name, name)],
           onChanged: (value) => onChanged(facilityValue, value),
         ),
         if (fallback)
@@ -157,6 +128,23 @@ class _FacilityAreaFields extends StatelessWidget {
     );
   }
 }
+
+IconData _statusIcon(String status) => switch (status) {
+  'In Progress' => Ph.wrench,
+  'Resolved' => Ph.checkCircle,
+  'Rejected' => Ph.xCircle,
+  _ => Ph.tray,
+};
+
+IconData _categoryIcon(String category) => switch (category) {
+  'Water' => Ph.drop,
+  'Electricity' => Ph.lightning,
+  'Facilities' => Ph.buildings,
+  'Furniture' => Ph.armchair,
+  'Sanitation' => Ph.trash,
+  'Safety' => Ph.shieldWarning,
+  _ => Ph.dotsThree,
+};
 
 class CreateIncidentScreen extends StatefulWidget {
   const CreateIncidentScreen({super.key});
@@ -214,8 +202,7 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
         title: _title.text,
         description: _description.text,
         category: _category!,
-        building:
-            '${_campusName(context)} · $_facility · $_area',
+        building: '${_campusName(context)} · $_facility · $_area',
         anonymous: _anonymous,
         photo: _photo,
         reporterId: context.read<AuthProvider>().user?.uid ?? 'demo-student',
@@ -262,37 +249,41 @@ class _CreateIncidentScreenState extends State<CreateIncidentScreen> {
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
+                AppTextField(
                   controller: _title,
-                  maxLength: 80,
+                  label: 'Short title',
+                  hint: 'e.g. Water leak near the library',
+                  icon: Ph.textT,
+                  maxLength: Validators.titleMax,
+                  inputFormatters: Validators.titleFormatters,
                   textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.next,
                   validator: Validators.title,
-                  decoration: const InputDecoration(
-                    labelText: 'Short title',
-                    hintText: 'e.g. Water leak near the library',
-                  ),
                 ),
                 const SizedBox(height: 14),
-                TextFormField(
+                AppTextField(
                   controller: _description,
-                  maxLength: 500,
+                  label: 'What happened?',
+                  icon: Ph.textAlignLeft,
+                  maxLength: Validators.descriptionMax,
+                  inputFormatters: Validators.descriptionFormatters,
                   minLines: 4,
                   maxLines: 7,
+                  alignLabelWithHint: true,
                   textCapitalization: TextCapitalization.sentences,
                   validator: Validators.description,
-                  decoration: const InputDecoration(
-                    labelText: 'What happened?',
-                    alignLabelWithHint: true,
-                  ),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _category,
+                SelectField<String>(
+                  label: 'Category',
+                  sheetTitle: 'What kind of issue is it?',
+                  icon: Ph.tag,
+                  value: _category,
                   validator: (value) => Validators.required(value, 'Category'),
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: incidentCategories
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                      .toList(),
+                  options: [
+                    for (final c in incidentCategories)
+                      SelectOption(c, c, icon: _categoryIcon(c)),
+                  ],
                   onChanged: (value) => setState(() => _category = value),
                 ),
                 const SizedBox(height: 14),
@@ -394,57 +385,20 @@ class IncidentListScreen extends StatelessWidget {
     final currentUid = context.watch<AuthProvider>().user?.uid;
     final items = provider.visibleItems;
     return Scaffold(
-      appBar: AppBar(title: Text(staffView ? 'All reports' : 'Campus reports')),
+      appBar: AppBar(
+        title: Text(staffView ? 'All reports' : 'Campus reports'),
+        actions: [
+          AlertsBell(staffView: staffView),
+          const SizedBox(width: 12),
+        ],
+      ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: TextField(
-              onChanged: provider.setQuery,
-              decoration: const InputDecoration(
-                hintText: 'Search title or location',
-                prefixIcon: Icon(Ph.magnifyingGlass),
-              ),
-            ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: ReportsSearchBar(),
           ),
-          _PillRow(
-            children: [
-              for (final (label, value, icon) in const [
-                ('All', 'All', Ph.listBullets),
-                ('New', 'Submitted', Ph.tray),
-                ('In progress', 'In Progress', Ph.wrench),
-                ('Resolved', 'Resolved', Ph.checkCircle),
-                ('Rejected', 'Rejected', Ph.xCircle),
-              ])
-                FilterPill(
-                  label: label,
-                  icon: icon,
-                  selected: provider.status == value,
-                  onTap: () => provider.setStatus(value),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _PillRow(
-            children: [
-              for (final (value, icon) in const [
-                ('All', Ph.squaresFour),
-                ('Water', Ph.drop),
-                ('Electricity', Ph.lightning),
-                ('Facilities', Ph.buildings),
-                ('Furniture', Ph.armchair),
-                ('Sanitation', Ph.trash),
-                ('Safety', Ph.shieldWarning),
-                ('Other', Ph.dotsThree),
-              ])
-                FilterPill(
-                  label: value == 'All' ? 'All types' : value,
-                  icon: icon,
-                  selected: provider.category == value,
-                  onTap: () => provider.setCategory(value),
-                ),
-            ],
-          ),
+          const ActiveFilters(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
             child: Align(
@@ -503,23 +457,6 @@ class IncidentListScreen extends StatelessWidget {
   }
 }
 
-class _PillRow extends StatelessWidget {
-  const _PillRow({required this.children});
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 42,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: children.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 8),
-      itemBuilder: (_, index) => children[index],
-    ),
-  );
-}
-
 class IncidentDetailScreen extends StatelessWidget {
   const IncidentDetailScreen({
     super.key,
@@ -528,15 +465,24 @@ class IncidentDetailScreen extends StatelessWidget {
   });
   final Incident incident;
   final bool staffView;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final provider = context.watch<IncidentProvider>();
     final match = provider.items.where((v) => v.id == incident.id);
     final item = match.isEmpty ? incident : match.first;
-    final user = context.watch<AuthProvider>().user;
-    final uid = user?.uid;
+    final uid = context.watch<AuthProvider>().user?.uid;
     final canDelete =
         !staffView && uid == item.reporterId && item.status == 'Submitted';
+    final reporter = item.isAnonymous
+        ? 'Anonymous'
+        : item.reporterName.isEmpty
+        ? 'ALU student'
+        : item.reporterName;
+    final voted = provider.hasUpvoted(item.id, uid ?? '');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Report details'),
@@ -544,142 +490,190 @@ class IncidentDetailScreen extends StatelessWidget {
           if (canDelete)
             IconButton(
               tooltip: 'Delete report',
-              icon: const Icon(Icons.delete_outline_rounded),
+              icon: const Icon(Ph.trash),
               onPressed: () => _confirmDelete(context, item),
             ),
+          const SizedBox(width: 6),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          StatusBadge(status: item.status),
-          const SizedBox(height: 14),
-          Text(
-            item.title,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text('${item.category} · ${item.building}'),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: item.imagePath == null
-                ? Container(
-                    height: 190,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.image_outlined,
-                            size: 42,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+            children: [
+              if (item.imagePath != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          item.imagePath!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => ColoredBox(
+                            color: colors.surfaceContainerHighest,
+                            child: Icon(
+                              Ph.image,
+                              size: 40,
+                              color: colors.onSurfaceVariant,
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('No photo attached'),
-                        ],
-                      ),
-                    ),
-                  )
-                : Image.network(
-                    item.imagePath!,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 190,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      child: const Center(
-                        child: Icon(Icons.broken_image_outlined),
-                      ),
+                        ),
+                        Positioned(
+                          left: 12,
+                          top: 12,
+                          child: StatusBadge(status: item.status),
+                        ),
+                      ],
                     ),
                   ),
-          ),
-          const SizedBox(height: 18),
-          Text(item.description, style: Theme.of(context).textTheme.bodyLarge),
-          if (!staffView) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: item.reporterId == uid
-                    ? null
-                    : () => provider.toggleUpvote(item, uid ?? ''),
-                icon: Icon(
-                  provider.hasUpvoted(item.id, uid ?? '')
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_upward_outlined,
                 ),
-                label: Text('Helpful · ${item.upvoteCount}'),
+                const SizedBox(height: 18),
+              ] else ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusBadge(status: item.status),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Text(
+                item.title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
               ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          Text(
-            'Reported by ${item.isAnonymous
-                ? 'Anonymous'
-                : item.reporterName.isEmpty
-                ? 'ALU student'
-                : item.reporterName}',
-          ),
-          const SizedBox(height: 26),
-          Text(
-            'Status history',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          ...item.history.map(
-            (event) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.circle, size: 12),
-              title: Text(event.status),
-              subtitle: Text(event.note.isEmpty ? event.changedBy : event.note),
-              trailing: Text(
-                '${event.at.day}/${event.at.month}/${event.at.year}',
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MetaChip(
+                    icon: _categoryIcon(item.category),
+                    label: item.category,
+                  ),
+                  _MetaChip(icon: Ph.mapPin, label: item.location),
+                  _MetaChip(icon: Ph.clock, label: stamp(item.createdAt)),
+                ],
               ),
-            ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: Text(
+                  item.description,
+                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.45),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      item.isAnonymous ? Ph.user : Ph.userCircleFill,
+                      color: colors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reported by $reporter',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${item.upvoteCount} ${item.upvoteCount == 1 ? 'person finds' : 'people find'} this helpful',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!staffView)
+                    _HelpfulButton(
+                      voted: voted,
+                      disabled: item.reporterId == uid,
+                      count: item.upvoteCount,
+                      onTap: () => provider.toggleUpvote(item, uid ?? ''),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Progress',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                decoration: BoxDecoration(
+                  color: theme.cardTheme.color ?? colors.surface,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: StatusRoadmap(incident: item),
+              ),
+              if (staffView) ...[
+                const SizedBox(height: 22),
+                FilledButton.icon(
+                  onPressed: () => _showStatusSheet(context, item),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  icon: const Icon(Ph.pencilSimple, size: 20),
+                  label: const Text('Update status'),
+                ),
+              ],
+            ],
           ),
-          if (staffView) ...[
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: () => _showStatusDialog(context, item),
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Update status'),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
 
   Future<void> _confirmDelete(BuildContext context, Incident item) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete this report?'),
-        content: const Text('This can’t be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep report'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final yes = await showConfirmSheet(
+      context,
+      icon: Ph.trash,
+      title: 'Delete this report?',
+      message: 'It will be removed for everyone and can’t be brought back. Only reports nobody has picked up yet can be deleted.',
+      confirmLabel: 'Delete report',
+      cancelLabel: 'Keep report',
     );
-    if (yes != true || !context.mounted) return;
+    if (!yes || !context.mounted) return;
     try {
       await context.read<IncidentProvider>().delete(item);
       if (context.mounted) Navigator.pop(context);
@@ -694,59 +688,17 @@ class IncidentDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _showStatusDialog(BuildContext context, Incident item) async {
-    String status = item.status;
-    final note = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Update report status'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: status,
-                items: incidentStatuses
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => status = v);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: note,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Update note'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+  Future<void> _showStatusSheet(BuildContext context, Incident item) async {
+    final result = await showFormSheet<({String status, String note})>(
+      context,
+      builder: (_) => _StatusForm(current: item.status),
     );
-    if (result != true || !context.mounted) return;
-    if (status == 'Rejected' && note.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add a note when rejecting a report.')),
-      );
-      return;
-    }
+    if (result == null || !context.mounted) return;
     try {
       await context.read<IncidentProvider>().updateStatus(
         item,
-        status,
-        note.text,
+        result.status,
+        result.note,
       );
     } catch (_) {
       if (context.mounted) {
@@ -759,6 +711,158 @@ class IncidentDetailScreen extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class _StatusForm extends StatefulWidget {
+  const _StatusForm({required this.current});
+  final String current;
+
+  @override
+  State<_StatusForm> createState() => _StatusFormState();
+}
+
+class _StatusFormState extends State<_StatusForm> {
+  final _form = GlobalKey<FormState>();
+  final _note = TextEditingController();
+  late String _status = widget.current;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FormSheet(
+    icon: Ph.pencilSimple,
+    title: 'Update report status',
+    subtitle: 'The reporter is told about every change.',
+    primaryLabel: 'Save',
+    onPrimary: () {
+      if (_form.currentState!.validate()) {
+        Navigator.of(context).pop((status: _status, note: _note.text));
+      }
+    },
+    child: Form(
+      key: _form,
+      child: Column(
+        children: [
+          SelectField<String>(
+            label: 'Status',
+            sheetTitle: 'Set the status',
+            icon: Ph.listBullets,
+            value: _status,
+            options: [
+              for (final v in incidentStatuses)
+                SelectOption(v, v, icon: _statusIcon(v)),
+            ],
+            onChanged: (v) => setState(() => _status = v),
+          ),
+          const SizedBox(height: 14),
+          AppTextField(
+            controller: _note,
+            label: _status == 'Rejected'
+                ? 'Reason for rejecting'
+                : 'Update note (optional)',
+            icon: Ph.pencilSimple,
+            maxLength: Validators.noteMax,
+            inputFormatters: Validators.noteFormatters,
+            minLines: 2,
+            maxLines: 4,
+            alignLabelWithHint: true,
+            textCapitalization: TextCapitalization.sentences,
+            validator: (v) =>
+                Validators.updateNote(v, mandatory: _status == 'Rejected'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: colors.primary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpfulButton extends StatelessWidget {
+  const _HelpfulButton({
+    required this.voted,
+    required this.disabled,
+    required this.count,
+    required this.onTap,
+  });
+  final bool voted, disabled;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final on = voted && !disabled;
+    return Opacity(
+      opacity: disabled ? .45 : 1,
+      child: GestureDetector(
+        onTap: disabled ? null : onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: on ? colors.primary : colors.surfaceContainer,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: on ? colors.primary : colors.outlineVariant,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                on ? Ph.thumbsUpFill : Ph.thumbsUp,
+                size: 18,
+                color: on ? colors.onPrimary : colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Helpful · $count',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: on ? colors.onPrimary : colors.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

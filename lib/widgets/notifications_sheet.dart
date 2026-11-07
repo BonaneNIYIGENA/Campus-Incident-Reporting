@@ -47,7 +47,7 @@ List<AlertItem> staffAlerts(List<Incident> items) => [
         incident: item,
         title: item.title,
         detail:
-            '${item.isAnonymous ? 'Anonymous reporter' : item.reporterName} · ${item.building}',
+            '${item.isAnonymous ? 'Anonymous reporter' : item.reporterName} · ${item.location}',
         at: item.createdAt,
       ),
 ];
@@ -148,43 +148,52 @@ class NotificationsPanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 6),
                     child: Row(
                       children: [
-                        Text(
-                          staffView ? 'Needs attention' : 'Updates',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  staffView ? 'Needs attention' : 'Updates',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (unread > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$unread new',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onPrimary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (unread > 0) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '$unread new',
-                              style: TextStyle(
-                                color: theme.colorScheme.onPrimary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
                         if (unread > 0)
-                          TextButton.icon(
+                          IconButton.filledTonal(
+                            tooltip: 'Mark all read',
                             onPressed: () =>
                                 store.markRead(alerts.map((a) => a.key)),
-                            icon: const Icon(Ph.checkBold, size: 16),
-                            label: const Text('Mark all read'),
+                            icon: const Icon(Ph.checkBold, size: 18),
                           ),
                       ],
                     ),

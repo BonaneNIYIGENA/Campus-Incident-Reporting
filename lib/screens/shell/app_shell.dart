@@ -4,12 +4,11 @@ import '../../theme/app_icons.dart';
 
 import 'package:provider/provider.dart';
 
-import '../../providers/alerts_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/incident_provider.dart';
 import '../../utils/user_role.dart';
 import '../../widgets/user_avatar.dart';
 import '../../widgets/floating_nav.dart';
+import '../../widgets/form_sheet.dart';
 import '../../widgets/notifications_sheet.dart';
 import '../auth/auth_gate.dart';
 import '../incident_screens.dart';
@@ -23,10 +22,12 @@ class ShellScope extends InheritedWidget {
     super.key,
     required this.goTab,
     required this.newReport,
+    required this.openAlerts,
     required super.child,
   });
   final void Function(int tab) goTab;
   final VoidCallback newReport;
+  final VoidCallback openAlerts;
 
   static ShellScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<ShellScope>();
@@ -35,7 +36,7 @@ class ShellScope extends InheritedWidget {
   bool updateShouldNotify(ShellScope oldWidget) => false;
 }
 
-enum _Slot { tab, create, alerts }
+enum _Slot { tab, create, logout }
 
 class _Dest {
   const _Dest(this.slot, this.nav, [this.tab = -1]);
@@ -85,98 +86,84 @@ class _AppShellState extends State<AppShell> {
         label: 'Account',
         icon: Ph.userCircle,
         activeIcon: Ph.userCircleFill,
-        avatar: (_) => UserAvatar(user: user, size: 28),
+        avatar: (_) => UserAvatar(user: user, size: 26),
       ),
       _staff ? 3 : 2,
     );
-    return _staff
-        ? [
-            _Dest(
-              _Slot.tab,
-              NavItemData(
-                label: 'Overview',
-                icon: Ph.squaresFour,
-                activeIcon: Ph.squaresFourFill,
-              ),
-              0,
-            ),
-            _Dest(
-              _Slot.tab,
-              NavItemData(
-                label: 'Reports',
-                icon: Ph.clipboardText,
-                activeIcon: Ph.clipboardTextFill,
-              ),
-              1,
-            ),
-            _Dest(
-              _Slot.tab,
-              NavItemData(
-                label: 'Facilities',
-                icon: Ph.buildings,
-                activeIcon: Ph.buildingsFill,
-              ),
-              2,
-            ),
-            _Dest(
-              _Slot.alerts,
-              NavItemData(
-                label: 'Alerts',
-                icon: Ph.bellSimple,
-                activeIcon: Ph.bellSimpleFill,
-              ),
-            ),
-            account,
-          ]
-        : [
-            const _Dest(
-              _Slot.tab,
-              NavItemData(
-                label: 'Home',
-                icon: Ph.house,
-                activeIcon: Ph.houseFill,
-              ),
-              0,
-            ),
-            _Dest(
-              _Slot.tab,
-              NavItemData(
-                label: 'Reports',
-                icon: Ph.clipboardText,
-                activeIcon: Ph.clipboardTextFill,
-              ),
-              1,
-            ),
-            _Dest(
-              _Slot.create,
-              NavItemData(
-                label: 'New report',
-                icon: Ph.plusBold,
-                activeIcon: Ph.plusBold,
-                primary: true,
-              ),
-            ),
-            _Dest(
-              _Slot.alerts,
-              NavItemData(
-                label: 'Alerts',
-                icon: Ph.bellSimple,
-                activeIcon: Ph.bellSimpleFill,
-              ),
-            ),
-            account,
-          ];
+    const records = _Dest(
+      _Slot.tab,
+      NavItemData(
+        label: 'Records',
+        icon: Ph.clipboardText,
+        activeIcon: Ph.clipboardTextFill,
+      ),
+      1,
+    );
+    const logout = _Dest(
+      _Slot.logout,
+      NavItemData(
+        label: 'Log out',
+        icon: Ph.signOut,
+        activeIcon: Ph.signOutFill,
+        destructive: true,
+      ),
+    );
+    if (_staff) {
+      return [
+        const _Dest(
+          _Slot.tab,
+          NavItemData(
+            label: 'Overview',
+            icon: Ph.squaresFour,
+            activeIcon: Ph.squaresFourFill,
+          ),
+          0,
+        ),
+        records,
+        const _Dest(
+          _Slot.tab,
+          NavItemData(
+            label: 'Facilities',
+            icon: Ph.buildings,
+            activeIcon: Ph.buildingsFill,
+          ),
+          2,
+        ),
+        account,
+        logout,
+      ];
+    }
+    // Two tabs, the Report button, then two more: the button sits in the middle.
+    return [
+      const _Dest(
+        _Slot.tab,
+        NavItemData(label: 'Home', icon: Ph.house, activeIcon: Ph.houseFill),
+        0,
+      ),
+      records,
+      const _Dest(
+        _Slot.create,
+        NavItemData(
+          label: 'Report',
+          icon: Ph.plusBold,
+          activeIcon: Ph.plusBold,
+          primary: true,
+        ),
+      ),
+      account,
+      logout,
+    ];
   }
 
   Widget _page(int tab, AppUser? user) {
-    final campus = user?.campus ?? '';
+    final campus = (user?.campus ?? '').isEmpty
+        ? 'Kigali Campus'
+        : user!.campus;
     if (_staff) {
       return switch (tab) {
         0 => const StaffDashboard(),
         1 => const IncidentListScreen(staffView: true),
-        2 => FacilityManagementScreen(
-          campus: campus.isEmpty ? 'Kigali Campus' : campus,
-        ),
+        2 => FacilityManagementScreen(campus: campus),
         _ => const AccountSettingsScreen(),
       };
     }
@@ -212,34 +199,21 @@ class _AppShellState extends State<AppShell> {
         _goTab(dest.tab);
       case _Slot.create:
         _newReport();
-      case _Slot.alerts:
-        _openAlerts();
+      case _Slot.logout:
+        _confirmLogout();
     }
   }
 
   Future<void> _confirmLogout() async {
-    final out = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You’ll need to sign in again to use the app.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Stay signed in'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFD7403A),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
+    final out = await showConfirmSheet(
+      context,
+      icon: Ph.signOut,
+      title: 'Log out?',
+      message: 'You’ll need to sign in again to use the app.',
+      confirmLabel: 'Log out',
+      cancelLabel: 'Stay signed in',
     );
-    if (out == true && mounted) await context.read<AuthProvider>().signOut();
+    if (out && mounted) await context.read<AuthProvider>().signOut();
   }
 
   @override
@@ -252,20 +226,13 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final incidents = context.watch<IncidentProvider>().items;
-    final store = context.watch<AlertsProvider>();
-    final alerts = _staff
-        ? staffAlerts(incidents)
-        : studentAlerts(incidents, user?.uid);
-    final unread = alerts
-        .where((a) => !store.isDeleted(a.key) && !store.isRead(a.key))
-        .length;
     final dests = _dests(user);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return ShellScope(
       goTab: _goTab,
       newReport: _newReport,
+      openAlerts: _openAlerts,
       child: ValueListenableBuilder<bool>(
         valueListenable: _canPop,
         builder: (context, canPop, child) => NavigatorPopHandler(
@@ -313,23 +280,10 @@ class _AppShellState extends State<AppShell> {
                       final selected = dests.indexWhere(
                         (d) => d.slot == _Slot.tab && d.tab == tab,
                       );
-                      final onAccount =
-                          selected >= 0 && dests[selected].nav.avatar != null;
                       return FloatingNavBar(
-                        items: [
-                          for (final d in dests)
-                            d.slot == _Slot.alerts
-                                ? NavItemData(
-                                    label: d.nav.label,
-                                    icon: d.nav.icon,
-                                    activeIcon: d.nav.activeIcon,
-                                    badge: unread,
-                                  )
-                                : d.nav,
-                        ],
+                        items: [for (final d in dests) d.nav],
                         selected: selected,
                         onTap: (i) => _onTap(dests[i]),
-                        onLogout: onAccount ? _confirmLogout : null,
                       );
                     },
                   ),
